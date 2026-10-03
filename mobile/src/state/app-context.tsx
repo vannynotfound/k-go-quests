@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { AppState, View } from 'react-native';
 import { randomUUID } from 'expo-crypto';
 import type { AttemptInput, AttemptResult, Pack, Profile, QueuedAttempt, Snapshot } from '../domain/types';
+import { starterPacks } from '../content/starter-pack';
 import { emptySnapshot } from '../domain/types';
 import { isIdle, isValidPin, lockedOut, recordFailure, type Lockout } from '../domain/pin-lock';
 import { getRepository } from '../data/storage';
@@ -106,7 +107,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!active || lockedRef.current) throw new Error('Unlock your profile to save an answer.');
     const classroom = snapshotRef.current.classrooms.find((c) => c.grade === pack.grade);
     if (!classroom) throw new Error('No classroom is set up for this grade yet.');
-    const exercise = snapshotRef.current.downloads.flatMap((d) => d.lessons).flatMap((l) => l.exercises).find((e) => e.id === exerciseId);
+    const exercise = starterPacks.flatMap((p) => p.lessons).flatMap((l) => l.exercises).find((e) => e.id === exerciseId);
     if (!exercise || !Number.isInteger(selectedOption) || selectedOption < 0 || selectedOption >= exercise.options.length) throw new Error('Choose an answer from a lesson on this device.');
     await (await getRepository()).queue(active.id, { clientAttemptId: randomUUID(), classroomId: classroom.id, exerciseId, selectedOption, occurredAt: new Date().toISOString() });
     await loadLocal(active.id); toast('Answer saved on this device.', 'success');
