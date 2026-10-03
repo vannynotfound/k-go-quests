@@ -29,7 +29,8 @@ export default function RootLayout() {
 }
 
 function Shell() {
-  const { ready, profile, locked } = useApp();
+  const { ready, profile, locked, step } = useApp();
+  const setUp = step === 'done';
   const theme = useTheme();
   useEffect(() => { void SystemUI.setBackgroundColorAsync(theme.page).catch(() => undefined); }, [theme.page]);
   useEffect(() => { if (ready) void SplashScreen.hideAsync(); }, [ready]);
@@ -44,14 +45,17 @@ function Shell() {
       <StatusBar style="light" />
       <NavigationBar hidden style="light" />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.page } }}>
-        <Stack.Protected guard={!profile}>
+        <Stack.Protected guard={!setUp}>
+          <Stack.Screen name="setup" />
+        </Stack.Protected>
+        <Stack.Protected guard={setUp && !profile}>
           <Stack.Screen name="index" />
           <Stack.Screen name="add-profile" />
         </Stack.Protected>
-        <Stack.Protected guard={Boolean(profile) && locked}>
+        <Stack.Protected guard={setUp && Boolean(profile) && locked}>
           <Stack.Screen name="lock" />
         </Stack.Protected>
-        <Stack.Protected guard={Boolean(profile) && !locked}>
+        <Stack.Protected guard={setUp && Boolean(profile) && !locked}>
           <Stack.Screen name="(student)" />
           <Stack.Screen name="subject" />
           <Stack.Screen name="lesson" />

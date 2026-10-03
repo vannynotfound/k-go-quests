@@ -4,6 +4,7 @@ import { randomUUID } from 'expo-crypto';
 import type { AttemptInput, AttemptResult, Pack, Profile, QueuedAttempt, Snapshot } from '../domain/types';
 import { starterPacks } from '../content/starter-pack';
 import { emptySnapshot } from '../domain/types';
+import { setupStep, type SetupStep } from '../domain/setup';
 import { isIdle, isValidPin, lockedOut, recordFailure, type Lockout } from '../domain/pin-lock';
 import { getRepository } from '../data/storage';
 import { pinDigest } from '../data/crypto';
@@ -17,7 +18,8 @@ interface AppContextValue {
   snapshot: Snapshot; queued: QueuedAttempt[]; outcomes: { input: AttemptInput; result: AttemptResult }[];
   notice: Notice | null; preferences: Preferences;
   toast(message: string, kind?: Notice['kind']): void; dismiss(): void;
-  createProfile(alias: string, pin: string): Promise<void>;
+  step: SetupStep; saveCaretakerId(id: string): Promise<void>; setCaretakerPin(pin: string): Promise<void>; finishSetup(): Promise<void>;
+  createProfile(alias: string, pin: string, openAfter?: boolean): Promise<void>;
   selectProfile(id: string | null): void; lock(): void; unlock(pin: string): Promise<void>;
   queue(exerciseId: string, selectedOption: number, pack: Pack): Promise<void>;
   updatePreferences(change: Partial<Preferences>): Promise<void>;
@@ -25,6 +27,11 @@ interface AppContextValue {
 const AppContext = createContext<AppContextValue | null>(null);
 const defaults: Preferences = { appearance: 'light', language: 'en' };
 const pinKey = (id: string) => `kgo-pin-${id}`;
+const CARETAKER_ID = 'kgo-caretaker-id';
+const CARETAKER_PIN = 'kgo-caretaker-pin';
+const SETUP_DONE = 'kgo-setup-done';
+// Same verifier as Profile PINs, keyed by a fixed owner instead of a Profile ID.
+const CARETAKER_OWNER = 'caretaker';
 const lockoutKey = (id: string) => `kgo-lockout-${id}`;
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
@@ -36,6 +43,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [queued, setQueued] = useState<QueuedAttempt[]>([]);
   const [outcomes, setOutcomes] = useState<{ input: AttemptInput; result: AttemptResult }[]>([]);
   const [preferences, setPreferences] = useState<Preferences>(defaults);
+  const [saved, setSaved] = useState({ caretakerId: false, pinSet: false, done: false });
   const [notice, setNotice] = useState<Notice | null>(null);
   const profileRef = useRef(profile); const snapshotRef = useRef(snapshot);
   const lockedRef = useRef(locked); const lastInteraction = useRef(0);
@@ -54,7 +62,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { void (async () => {
     try {
-      const [labels, prefs] = await Promise.all([vault.get('kgo-profiles'), vault.get('kgo-preferences')]);
+      const [labels, prefs, id, pin, done] = await Promise.all([vault.get('kgo-profiles'), vault.get('kgo-preferences'), vault.get(CARETAKER_ID), vault.get(CARETAKER_PIN), vault.get(SETUP_DONE)]);
+      setSaved({ caretakerId: Boolean(id), pinSet: Boolean(pin), done: Boolean(done) });
       if (labels) setProfiles(JSON.parse(labels)); if (prefs) setPreferences({ ...defaults, ...JSON.parse(prefs) });
     } catch { toast('Profiles on this tablet could not be restored.', 'error'); }
     finally { setReady(true); }
@@ -76,7 +85,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try { await loadLocal(next.id); }
     catch (error) { lock(); throw error; }
   };
-  const createProfile = async (alias: string, pin: string) => {
+  const saveCaretakerId = async (id: string) => { await vault.set(CARETAKER_ID, id); setSaved((s) => ({ ...s, caretakerId: true })); };
+  const setCaretakerPin = async (pin: string) => {
+    if (!isValidPin(pin)) throw new Error('Choose a 6-digit PIN.');
+    await vault.set(CARETAKER_PIN, await pinDigest(CARETAKER_OWNER, pin)); setSaved((s) => ({ ...s, pinSet: true }));
+  };
+  const finishSetup = async () => {
+    if (!profiles.length) throw new Error('Create at least one profile first.');
+    await vault.set(SETUP_DONE, '1'); setSaved((s) => ({ ...s, done: true }));
+  };
+  const createProfile = async (alias: string, pin: string, openAfter = true) => {
     const name = alias.trim();
     if (!name) throw new Error('Enter a name for this profile.');
     if (!isValidPin(pin)) throw new Error('Choose a 6-digit PIN.');
@@ -84,7 +102,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const all = [...profiles, next];
     await vault.set(pinKey(next.id), await pinDigest(next.id, pin));
     await vault.set('kgo-profiles', JSON.stringify(all)); setProfiles(all);
-    await open(next);
+    if (openAfter) await open(next);
   };
   const selectProfile = (id: string | null) => {
     const next = profiles.find((p) => p.id === id) ?? null;
@@ -113,7 +131,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await loadLocal(active.id); toast('Answer saved on this device.', 'success');
   };
   const updatePreferences = async (change: Partial<Preferences>) => { const next = { ...preferences, ...change }; await vault.set('kgo-preferences', JSON.stringify(next)); setPreferences(next); };
-  return <AppContext.Provider value={{ ready, profiles, profile, locked, snapshot, queued, outcomes, notice, preferences, toast, dismiss: () => setNotice(null), createProfile, selectProfile, lock, unlock, queue, updatePreferences }}>
+  return <AppContext.Provider value={{ ready, profiles, profile, locked, snapshot, queued, outcomes, notice, preferences, toast, dismiss: () => setNotice(null), step: setupStep(saved), saveCaretakerId, setCaretakerPin, finishSetup, createProfile, selectProfile, lock, unlock, queue, updatePreferences }}>
     <InteractionBoundary onTouch={() => { lastInteraction.current = Date.now(); }}>{children}</InteractionBoundary>
   </AppContext.Provider>;
 }
