@@ -18,7 +18,6 @@
     "expo-linear-gradient": "~57.0.2",
     "expo-linking": "~57.0.11",
     "expo-navigation-bar": "^57.0.3",
-    "expo-network": "~57.0.2",
     "expo-router": "~57.0.24",
     "expo-secure-store": "~57.0.4",
     "expo-speech": "~57.0.3",
@@ -53,7 +52,9 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "private": true
 }

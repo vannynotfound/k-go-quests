@@ -6,7 +6,7 @@ import { CircleHelp, Lightbulb, Mic, PenLine, Play, Search, Square, Volume2 } fr
 
 import { useApp } from '@/state/app-context';
 import type { Lesson, Pack } from '@/domain/types';
-import { subjectTitles } from '@/data/preview';
+import { subjectTitles } from '@/domain/subjects';
 import { Action, Bar, Card, Empty, Eyebrow, IconTile, Info, Pill, Pills, Row, Sheet, T } from '@/ui/primitives';
 import { Screen } from '@/ui/screen';
 import { radius, subjectTheme, tokens, useTheme } from '@/ui/theme';

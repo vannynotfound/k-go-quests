@@ -5,7 +5,7 @@ import { BookOpen, ChartColumn, Leaf, Sparkles } from 'lucide-react-native';
 import { useApp } from '@/state/app-context';
 import { meanMastery } from '@/domain/format';
 import type { Subject } from '@/domain/types';
-import { subjectTitles } from '@/data/preview';
+import { subjectTitles } from '@/domain/subjects';
 import { BackLink, Card, Empty, Eyebrow, IconTile, Pill, Ring, Row, T } from '@/ui/primitives';
 import { Screen } from '@/ui/screen';
 import { subjectTheme, tokens, useTheme } from '@/ui/theme';

@@ -1,12 +1,12 @@
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { BookOpen, ChartColumn, Download, Leaf, Play, RefreshCw, Sparkles, TriangleAlert } from 'lucide-react-native';
+import { BookOpen, ChartColumn, Download, Leaf, Play, Sparkles } from 'lucide-react-native';
 
 import { useApp } from '@/state/app-context';
 import { pct } from '@/domain/format';
 import type { PackDownload, Subject } from '@/domain/types';
-import { subjectTitles } from '@/data/preview';
-import { Action, Bar, Card, Empty, Eyebrow, IconTile, Pill, Row, Section, T } from '@/ui/primitives';
+import { subjectTitles } from '@/domain/subjects';
+import { Bar, Card, Empty, Eyebrow, IconTile, Pill, Row, Section, T } from '@/ui/primitives';
 import { Screen } from '@/ui/screen';
 import { subjectTheme, tokens, useTheme } from '@/ui/theme';
 
@@ -18,32 +18,15 @@ const subjectIcon: Record<Subject, typeof BookOpen> = {
 const sizeOf = (download?: PackDownload) => (download ? Math.max(1, Math.round(JSON.stringify(download).length / 1024)) : 0);
 
 export default function Learn() {
-  const { snapshot, queued, sync, download, preview } = useApp();
+  const { snapshot } = useApp();
   const theme = useTheme();
   const router = useRouter();
 
   const downloads = new Map(snapshot.downloads.map((entry) => [entry.pack.id, entry]));
   const cachedModules = snapshot.downloads.reduce((total, entry) => total + entry.lessons.length, 0);
-  const pending = queued.filter((item) => item.state === 'PENDING').length;
-  const review = queued.filter((item) => item.state === 'REVIEW').length;
 
   return (
     <Screen chrome title="Offline Library" caption={`${cachedModules.toLocaleString()} module${cachedModules === 1 ? '' : 's'} cached offline`}>
-      {pending || review ? (
-        <Card style={{ backgroundColor: review ? `${tokens.state.critical}0F` : tokens.tint.warning, borderColor: review ? `${tokens.state.critical}40` : `${tokens.state.warning}40` }}>
-          <Row style={{ alignItems: 'flex-start' }}>
-            {review ? <TriangleAlert size={18} color={tokens.state.critical} /> : <RefreshCw size={18} color={tokens.state.warning} />}
-            <View style={{ flex: 1, gap: 3 }}>
-              <T variant="titleS">{review ? `${review} answer${review === 1 ? '' : 's'} need review` : `${pending} answer${pending === 1 ? '' : 's'} waiting to sync`}</T>
-              <T variant="bodyS" color={theme.secondary}>
-                {review ? 'These stay on this device. Show them to your teacher from Progress.' : 'Coins and correctness are confirmed by the school server on the next hub sync.'}
-              </T>
-            </View>
-          </Row>
-          {pending ? <Action title="Sync now" icon={RefreshCw} variant="soft" task={sync} /> : null}
-        </Card>
-      ) : null}
-
       <Eyebrow>Your subjects · MATATAG Grade 5</Eyebrow>
 
       {snapshot.packs.map((pack, index) => {
@@ -70,9 +53,8 @@ export default function Learn() {
             </Row>
             <Row>
               <T variant="bodyS" color={theme.secondary} style={{ flex: 1 }}>
-                {saved ? `${sizeOf(saved)} KB on device · ready offline` : 'Not downloaded — get it while you have signal'}
+                {saved ? `${sizeOf(saved)} KB on device · ready offline` : 'Not on this device yet'}
               </T>
-              {!saved && !preview ? <Action title="Get" icon={Download} variant="soft" task={() => download(pack)} /> : null}
             </Row>
           </Card>
         );
@@ -98,7 +80,7 @@ export default function Learn() {
           })}
         </>
       ) : !snapshot.packs.length ? (
-        <Empty icon={Download} title="Nothing cached yet" text="Your LGU has not published any packs for this grade. Once they do, download one here and it stays available offline." />
+        <Empty icon={Download} title="Nothing cached yet" text="Lesson packs will appear here once your Caretaker adds them to this tablet." />
       ) : null}
 
     </Screen>

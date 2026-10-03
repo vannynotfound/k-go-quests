@@ -7,7 +7,7 @@ import * as Speech from 'expo-speech';
 import { Check, CircleCheck, Lightbulb, Play, RefreshCw, TriangleAlert, WifiOff } from 'lucide-react-native';
 
 import { useApp } from '@/state/app-context';
-import { subjectTitles } from '@/data/preview';
+import { subjectTitles } from '@/domain/subjects';
 import type { Exercise } from '@/domain/types';
 import { Action, BackLink, Card, Empty, Pill, Row, T } from '@/ui/primitives';
 import { Screen } from '@/ui/screen';
@@ -17,7 +17,7 @@ type Verdict = 'correct' | 'wrong' | 'saved';
 
 export default function ModuleScreen() {
   const { lessonId, exerciseId } = useLocalSearchParams<{ lessonId?: string; exerciseId?: string }>();
-  const { snapshot, outcomes, queued, queue, sync, preferences } = useApp();
+  const { snapshot, outcomes, queued, queue, preferences } = useApp();
   const theme = useTheme();
   const router = useRouter();
   const [playlist, setPlaylist] = useState<Exercise[] | null>(null);
@@ -100,9 +100,8 @@ export default function ModuleScreen() {
           <CircleCheck size={42} color={tokens.state.success} />
           <T variant="titleM">Practice set complete</T>
           <T variant="bodyS" color={theme.muted} style={{ textAlign: 'center', maxWidth: 280 }}>
-            Your answers are on this device. The school server confirms them and awards coins on the next sync.
+            Your answers are saved on this device.
           </T>
-          <Action title="Sync now" icon={RefreshCw} task={sync} />
         </Card>
       )}
 
@@ -184,7 +183,7 @@ function VerdictBar({ kind, coins }: { kind: Verdict; coins: number }) {
     ? `Correct! +${coins} Coins earned`
     : kind === 'wrong'
       ? 'Not quite — the correct answer is shown above'
-      : 'Saved on this device — checked when you sync';
+      : 'Saved on this device';
   return (
     <Animated.View entering={SlideInDown.duration(280)} style={{ backgroundColor: background, borderRadius: radius.md, paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
       <Animated.View entering={FadeIn.delay(120)}><Icon size={18} color="#ffffff" /></Animated.View>
