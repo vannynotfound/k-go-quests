@@ -6,6 +6,7 @@ import { CircleHelp, Lightbulb, Mic, PenLine, Play, Search, Square, Volume2 } fr
 
 import { useApp } from '@/state/app-context';
 import type { Lesson, Pack } from '@/domain/types';
+import { starterPacks } from '@/content/starter-pack';
 import { subjectTitles } from '@/domain/subjects';
 import { Action, Bar, Card, Empty, Eyebrow, IconTile, Info, Pill, Pills, Row, Sheet, T } from '@/ui/primitives';
 import { Screen } from '@/ui/screen';
@@ -57,8 +58,8 @@ export default function Tutor() {
   const [picking, setPicking] = useState(false);
   const [speaking, setSpeaking] = useState(false);
 
-  const topics: Topic[] = snapshot.downloads.flatMap((entry) =>
-    entry.lessons.map((lesson) => ({ pack: entry.pack, lesson })),
+  const topics: Topic[] = starterPacks.flatMap((pack) =>
+    pack.lessons.map((lesson) => ({ pack, lesson })),
   );
   const skills = snapshot.progress?.skills ?? [];
   // Default to whatever the learner is weakest at and actually has downloaded.

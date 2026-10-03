@@ -1,12 +1,13 @@
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { BookOpen, ChartColumn, Download, Leaf, Play, Sparkles } from 'lucide-react-native';
+import { BookOpen, ChartColumn, Leaf, Play, Sparkles } from 'lucide-react-native';
 
 import { useApp } from '@/state/app-context';
 import { pct } from '@/domain/format';
-import type { PackDownload, Subject } from '@/domain/types';
+import type { Subject } from '@/domain/types';
 import { subjectTitles } from '@/domain/subjects';
-import { Bar, Card, Empty, Eyebrow, IconTile, Pill, Row, Section, T } from '@/ui/primitives';
+import { starterPacks } from '@/content/starter-pack';
+import { Card, Eyebrow, IconTile, Pill, Row, Section, T } from '@/ui/primitives';
 import { Screen } from '@/ui/screen';
 import { subjectTheme, tokens, useTheme } from '@/ui/theme';
 
@@ -14,48 +15,30 @@ const subjectIcon: Record<Subject, typeof BookOpen> = {
   MATH: ChartColumn, ENGLISH: BookOpen, FILIPINO: Leaf, SCIENCE: Sparkles,
 };
 
-/** Rough on-device footprint, so the card can state what a download costs. */
-const sizeOf = (download?: PackDownload) => (download ? Math.max(1, Math.round(JSON.stringify(download).length / 1024)) : 0);
-
 export default function Learn() {
   const { snapshot } = useApp();
   const theme = useTheme();
   const router = useRouter();
 
-  const downloads = new Map(snapshot.downloads.map((entry) => [entry.pack.id, entry]));
-  const cachedModules = snapshot.downloads.reduce((total, entry) => total + entry.lessons.length, 0);
+  const lessonCount = starterPacks.reduce((total, pack) => total + pack.lessons.length, 0);
 
   return (
-    <Screen chrome title="Offline Library" caption={`${cachedModules.toLocaleString()} module${cachedModules === 1 ? '' : 's'} cached offline`}>
+    <Screen chrome title="Subjects" caption={`${lessonCount} lesson${lessonCount === 1 ? '' : 's'} on this tablet`}>
       <Eyebrow>Your subjects · MATATAG Grade 5</Eyebrow>
 
-      {snapshot.packs.map((pack, index) => {
-        const saved = downloads.get(pack.id);
+      {starterPacks.map((pack, index) => {
         const tone = subjectTheme[pack.subject];
-        const total = saved?.lessons.length ?? 0;
         return (
-          <Card key={pack.id} index={index} onPress={saved ? () => router.push({ pathname: '/subject', params: { packId: pack.id } }) : undefined}>
+          <Card key={pack.id} index={index} onPress={() => router.push({ pathname: '/subject', params: { packId: pack.id } })}>
             <Row style={{ gap: 11 }}>
               <IconTile icon={subjectIcon[pack.subject]} color={tone.brand} tint={tone.tint} />
               <View style={{ flex: 1, gap: 2 }}>
                 <T variant="titleM" lines={1}>{`${subjectTitles[pack.subject]} ${pack.grade}`}</T>
                 <T variant="bodyS" color={theme.muted} lines={1}>{pack.title}</T>
               </View>
-              {saved ? (
-                <Pill color={tokens.state.success} tint={tokens.tint.success}>Cached</Pill>
-              ) : (
-                <Pill color={tokens.brand.sky} tint={tokens.tint.sky}>Queued</Pill>
-              )}
+              <Pill color={tokens.state.success} tint={tokens.tint.success}>On device</Pill>
             </Row>
-            <Row style={{ gap: 8 }}>
-              <Bar value={saved ? 1 : 0} color={tone.brand} />
-              <T variant="dataS" color={theme.muted}>{saved ? `${total}/${total}` : `0/${total || '—'}`}</T>
-            </Row>
-            <Row>
-              <T variant="bodyS" color={theme.secondary} style={{ flex: 1 }}>
-                {saved ? `${sizeOf(saved)} KB on device · ready offline` : 'Not on this device yet'}
-              </T>
-            </Row>
+            <T variant="bodyS" color={theme.secondary}>{`${pack.lessons.length} lesson${pack.lessons.length === 1 ? '' : 's'} · works offline`}</T>
           </Card>
         );
       })}
@@ -79,8 +62,6 @@ export default function Learn() {
             );
           })}
         </>
-      ) : !snapshot.packs.length ? (
-        <Empty icon={Download} title="Nothing cached yet" text="Lesson packs will appear here once your Caretaker adds them to this tablet." />
       ) : null}
 
     </Screen>

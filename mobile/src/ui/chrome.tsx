@@ -6,6 +6,7 @@ import { BookOpen, ChevronRight, CircleHelp, Coins, Download, Gift, Globe, Lock,
 
 import { useApp } from '../state/app-context';
 import { initials } from '../domain/format';
+import { starterPacks } from '../content/starter-pack';
 import { elevation, radius, tokens, useTheme } from './theme';
 import { Eyebrow, Pill, Pills, Row, T } from './primitives';
 
@@ -99,7 +100,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
   const panel = useAnimatedStyle(() => ({ transform: [{ translateX: shift.value }] }));
   const scrim = useAnimatedStyle(() => ({ opacity: 1 - Math.abs(shift.value) / SIDEBAR_WIDTH }));
   const coins = snapshot.progress?.coinBalance ?? 0;
-  const megabytes = Math.round(JSON.stringify(snapshot.downloads).length / 1024);
+  const megabytes = Math.round(JSON.stringify(starterPacks).length / 1024);
 
   if (!open) return null;
   return (
