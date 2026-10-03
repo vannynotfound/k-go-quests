@@ -24,7 +24,7 @@ function band(mastery: number | undefined, theme: { muted: string; surfaceAlt: s
 
 export default function SubjectScreen() {
   const { packId } = useLocalSearchParams<{ packId?: string }>();
-  const { snapshot } = useApp();
+  const { learning } = useApp();
   const theme = useTheme();
   const router = useRouter();
 
@@ -39,9 +39,8 @@ export default function SubjectScreen() {
 
   const { lessons } = pack;
   const tone = subjectTheme[pack.subject];
-  const skills = snapshot.progress?.skills ?? [];
-  const masteryFor = (skillCode: string) => skills.find((skill) => skill.skillCode === skillCode)?.mastery;
-  const packSkills = skills.filter((skill) => lessons.some((lesson) => lesson.skillCode === skill.skillCode));
+  const masteryFor = (skillCode: string) => learning.skills.find((skill) => skill.skillId === skillCode)?.mastery;
+  const packSkills = learning.skills.filter((skill) => lessons.some((lesson) => lesson.skillCode === skill.skillId));
   const overall = meanMastery(packSkills);
 
   return (

@@ -1,9 +1,9 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, View } from 'react-native';
 import { randomUUID } from 'expo-crypto';
-import type { AttemptInput, AttemptResult, Pack, Profile, QueuedAttempt, Snapshot } from '../domain/types';
+import type { Profile } from '../domain/types';
 import { starterPacks } from '../content/starter-pack';
-import { emptySnapshot } from '../domain/types';
+import { grade, learningState, type Attempt, type Grade, type LearningState } from '../domain/engine';
 import { isIdle, isValidPin, lockedOut, recordFailure, type Lockout } from '../domain/pin-lock';
 import { getRepository } from '../data/storage';
 import { pinDigest } from '../data/crypto';
@@ -14,12 +14,12 @@ interface Preferences { appearance: Appearance; language: string; }
 interface Notice { message: string; kind: 'success' | 'error' | 'info'; }
 interface AppContextValue {
   ready: boolean; profiles: Profile[]; profile: Profile | null; locked: boolean;
-  snapshot: Snapshot; queued: QueuedAttempt[]; outcomes: { input: AttemptInput; result: AttemptResult }[];
+  attempts: Attempt[]; learning: LearningState;
   notice: Notice | null; preferences: Preferences;
   toast(message: string, kind?: Notice['kind']): void; dismiss(): void;
   createProfile(alias: string, pin: string): Promise<void>;
   selectProfile(id: string | null): void; lock(): void; unlock(pin: string): Promise<void>;
-  queue(exerciseId: string, selectedOption: number, pack: Pack): Promise<void>;
+  answer(exerciseId: string, selectedOption: number): Promise<Grade>;
   updatePreferences(change: Partial<Preferences>): Promise<void>;
 }
 const AppContext = createContext<AppContextValue | null>(null);
@@ -32,24 +32,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [locked, setLocked] = useState(true);
-  const [snapshot, setSnapshot] = useState<Snapshot>(emptySnapshot);
-  const [queued, setQueued] = useState<QueuedAttempt[]>([]);
-  const [outcomes, setOutcomes] = useState<{ input: AttemptInput; result: AttemptResult }[]>([]);
+  const [attempts, setAttempts] = useState<Attempt[]>([]);
+  const learning = useMemo(() => learningState(starterPacks, attempts), [attempts]);
   const [preferences, setPreferences] = useState<Preferences>(defaults);
   const [notice, setNotice] = useState<Notice | null>(null);
-  const profileRef = useRef(profile); const snapshotRef = useRef(snapshot);
+  const profileRef = useRef(profile); const attemptsRef = useRef(attempts);
   const lockedRef = useRef(locked); const lastInteraction = useRef(0);
 
   const toast = useCallback((message: string, kind: Notice['kind'] = 'info') => setNotice({ message, kind }), []);
   // Refs mirror committed state so async handlers read fresh values; set after every commit, never during render.
-  useEffect(() => { profileRef.current = profile; snapshotRef.current = snapshot; lockedRef.current = locked; });
+  useEffect(() => { profileRef.current = profile; attemptsRef.current = attempts; lockedRef.current = locked; });
 
-  const forget = () => { setSnapshot(emptySnapshot()); setQueued([]); setOutcomes([]); };
+  const forget = () => { attemptsRef.current = []; setAttempts([]); };
   const lock = useCallback(() => { lockedRef.current = true; setLocked(true); }, []);
   const loadLocal = useCallback(async (owner: string) => {
     const repo = await getRepository();
-    const [next, queue, confirmed] = await Promise.all([repo.snapshot(owner), repo.queued(owner), repo.outcomes(owner)]);
-    if (profileRef.current?.id === owner && !lockedRef.current) { snapshotRef.current = next; setSnapshot(next); setQueued(queue); setOutcomes(confirmed); }
+    const log = await repo.attempts(owner);
+    if (profileRef.current?.id === owner && !lockedRef.current) { attemptsRef.current = log; setAttempts(log); }
   }, []);
 
   useEffect(() => { void (async () => {
@@ -102,18 +101,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await vault.remove(lockoutKey(active.id));
     await open(active);
   };
-  const queue = async (exerciseId: string, selectedOption: number, pack: Pack) => {
+  const answer = async (exerciseId: string, selectedOption: number) => {
     const active = profileRef.current;
     if (!active || lockedRef.current) throw new Error('Unlock your profile to save an answer.');
-    const classroom = snapshotRef.current.classrooms.find((c) => c.grade === pack.grade);
-    if (!classroom) throw new Error('No classroom is set up for this grade yet.');
-    const exercise = starterPacks.flatMap((p) => p.lessons).flatMap((l) => l.exercises).find((e) => e.id === exerciseId);
-    if (!exercise || !Number.isInteger(selectedOption) || selectedOption < 0 || selectedOption >= exercise.options.length) throw new Error('Choose an answer from a lesson on this device.');
-    await (await getRepository()).queue(active.id, { clientAttemptId: randomUUID(), classroomId: classroom.id, exerciseId, selectedOption, occurredAt: new Date().toISOString() });
-    await loadLocal(active.id); toast('Answer saved on this device.', 'success');
+    const result = grade(starterPacks, attemptsRef.current, { id: randomUUID(), exerciseId, selectedOption }, new Date().toISOString());
+    await (await getRepository()).record(active.id, result.attempt);
+    const next = [...attemptsRef.current, result.attempt];
+    attemptsRef.current = next; setAttempts(next);
+    return result;
   };
   const updatePreferences = async (change: Partial<Preferences>) => { const next = { ...preferences, ...change }; await vault.set('kgo-preferences', JSON.stringify(next)); setPreferences(next); };
-  return <AppContext.Provider value={{ ready, profiles, profile, locked, snapshot, queued, outcomes, notice, preferences, toast, dismiss: () => setNotice(null), createProfile, selectProfile, lock, unlock, queue, updatePreferences }}>
+  return <AppContext.Provider value={{ ready, profiles, profile, locked, attempts, learning, notice, preferences, toast, dismiss: () => setNotice(null), createProfile, selectProfile, lock, unlock, answer, updatePreferences }}>
     <InteractionBoundary onTouch={() => { lastInteraction.current = Date.now(); }}>{children}</InteractionBoundary>
   </AppContext.Provider>;
 }
