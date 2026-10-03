@@ -1,8 +1,5 @@
-export type Role = 'STUDENT' | 'TEACHER' | 'LGU_ADMIN';
 export type Subject = 'MATH' | 'ENGLISH' | 'FILIPINO' | 'SCIENCE';
-export interface User { id: string; loginId: string; alias: string; role: Role; jurisdictionId: string; schoolId: string | null; coins: number; active?: boolean; }
-export interface Session { user: User; accessToken: string; refreshToken: string; expiresIn: number; deviceId: string; offlineUntil: number; revoked?: boolean; }
-export interface Page<T> { items: T[]; total: number; page: number; limit: number; }
+export interface Profile { id: string; alias: string; }
 export interface School { id: string; name: string; jurisdictionId: string; }
 export interface Classroom { id: string; name: string; grade: number; teacherId: string; schoolId: string; }
 export interface Pack { id: string; title: string; subject: Subject; grade: number; version: string; published: boolean; attribution: string; jurisdictionId: string; createdAt?: string; }
@@ -15,7 +12,6 @@ export interface Quest { exerciseId: string; classroomId: string; skillCode: str
 export interface AttemptInput { clientAttemptId: string; classroomId: string; exerciseId: string; selectedOption: number; occurredAt: string; }
 export interface AttemptResult { clientAttemptId: string; correct: boolean; awardedCoins: number; duplicate: boolean; }
 export interface QueuedAttempt { input: AttemptInput; state: 'PENDING' | 'REVIEW'; error?: string; }
-export interface SyncResponse { results: AttemptResult[]; awardedCoins: number; coinBalance: number; serverTime: string; modelVersion: string; }
 export interface Reward { id: string; title: string; cost: number; stock: number; active: boolean; jurisdictionId: string; }
 export interface Redemption { id: string; studentId: string; rewardId: string; requestId: string; cost: number; status: 'ISSUED' | 'CLAIMED'; createdAt: string; claimedAt: string | null; }
 export interface Voucher { redemption: Redemption; qrToken: string; claimMode: string; }
@@ -30,7 +26,7 @@ export interface Snapshot {
   classrooms: Classroom[]; schools: School[]; packs: Pack[]; downloads: PackDownload[];
   progress: Progress | null; quests: Quest[]; league: League | null;
   rewards: Reward[]; vouchers: Voucher[]; reports: ClassReport[];
-  impact: Impact | null; users: User[]; audit: AuditEvent[];
+  impact: Impact | null; audit: AuditEvent[];
   history: { at: string; mastery: number }[]; refreshedAt: string | null;
 }
-export const emptySnapshot = (): Snapshot => ({ classrooms: [], schools: [], packs: [], downloads: [], progress: null, quests: [], league: null, rewards: [], vouchers: [], reports: [], impact: null, users: [], audit: [], history: [], refreshedAt: null });
+export const emptySnapshot = (): Snapshot => ({ classrooms: [], schools: [], packs: [], downloads: [], progress: null, quests: [], league: null, rewards: [], vouchers: [], reports: [], impact: null, audit: [], history: [], refreshedAt: null });

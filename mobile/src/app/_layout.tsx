@@ -29,15 +29,12 @@ export default function RootLayout() {
 }
 
 function Shell() {
-  const { ready, session, locked, needsLogin } = useApp();
+  const { ready, profile, locked } = useApp();
   const theme = useTheme();
   useEffect(() => { void SystemUI.setBackgroundColorAsync(theme.page).catch(() => undefined); }, [theme.page]);
   useEffect(() => { if (ready) void SplashScreen.hideAsync(); }, [ready]);
   if (!ready) return null;
 
-  const signedIn = Boolean(session) && !needsLogin;
-  const unlocked = signedIn && !locked;
-  const role = session?.user.role;
 
   return (
     <>
@@ -47,20 +44,17 @@ function Shell() {
       <StatusBar style="light" />
       <NavigationBar hidden style="light" />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.page } }}>
-        <Stack.Protected guard={!signedIn}>
+        <Stack.Protected guard={!profile}>
           <Stack.Screen name="index" />
-          <Stack.Screen name="sign-in" />
-          <Stack.Screen name="onboarding" />
-          <Stack.Screen name="register" />
+          <Stack.Screen name="add-profile" />
         </Stack.Protected>
-        <Stack.Protected guard={signedIn && locked}>
+        <Stack.Protected guard={Boolean(profile) && locked}>
           <Stack.Screen name="lock" />
         </Stack.Protected>
-        <Stack.Protected guard={unlocked && role === 'STUDENT'}>
+        <Stack.Protected guard={Boolean(profile) && !locked}>
           <Stack.Screen name="(student)" />
           <Stack.Screen name="subject" />
           <Stack.Screen name="lesson" />
-          <Stack.Screen name="profile" />
         </Stack.Protected>
       </Stack>
       <Toast />
