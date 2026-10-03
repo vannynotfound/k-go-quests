@@ -48,3 +48,9 @@ describe('Starter Pack', () => {
     expect(JSON.stringify(starterPacks)).not.toMatch(/khan/i);
   });
 });
+
+describe('Hints', () => {
+  it('gives every Lesson a Hint in en, tl, ceb and ilo', () => {
+    for (const l of lessons) for (const code of ['en', 'tl', 'ceb', 'ilo']) expect(l.hints[code]?.trim(), `${l.id} ${code}`).toBeTruthy();
+  });
+});

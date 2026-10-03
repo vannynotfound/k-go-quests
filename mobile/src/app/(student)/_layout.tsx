@@ -8,7 +8,6 @@ export default function StudentTabs() {
       tabBar={(props) => <NavBar {...(props as unknown as NavBarProps)} />}
     >
       <Tabs.Screen name="learn" options={{ title: 'Learn' }} />
-      <Tabs.Screen name="tutor" options={{ title: 'Tutor' }} />
       <Tabs.Screen name="progress" options={{ title: 'Progress' }} />
       <Tabs.Screen name="rewards" options={{ title: 'Rewards' }} />
     </Tabs>
