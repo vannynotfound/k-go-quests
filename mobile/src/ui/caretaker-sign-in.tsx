@@ -22,7 +22,7 @@ const check = ({ error }: { error: { message: string } | null }) => { if (error)
 function EmailCode() {
   const { signIn } = useSignIn();
   const clerk = useClerk();
-  const { saveCaretakerId } = useApp();
+  const { saveCaretakerId, caretakerSignedOut } = useApp();
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [sent, setSent] = useState(false);
@@ -38,6 +38,7 @@ function EmailCode() {
     const id = clerk.user?.id;
     if (!id) { await clerk.signOut(); throw new Error('Sign-in did not finish. Try again.'); }
     await keepCaretaker(id, saveCaretakerId, () => clerk.signOut());
+    caretakerSignedOut(); // only now does Setup leave this step and unmount Clerk
   };
 
   return sent ? (

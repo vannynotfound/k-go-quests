@@ -3,10 +3,10 @@ import { keepCaretaker, setupStep } from './setup';
 
 describe('setupStep', () => {
   it('walks sign-in, PIN, profiles, done', () => {
-    expect(setupStep({ caretakerId: false, pinSet: false, done: false })).toBe('sign-in');
-    expect(setupStep({ caretakerId: true, pinSet: false, done: false })).toBe('caretaker-pin');
-    expect(setupStep({ caretakerId: true, pinSet: true, done: false })).toBe('profiles');
-    expect(setupStep({ caretakerId: true, pinSet: true, done: true })).toBe('done');
+    expect(setupStep({ hasCaretaker: false, pinSet: false, done: false })).toBe('sign-in');
+    expect(setupStep({ hasCaretaker: true, pinSet: false, done: false })).toBe('caretaker-pin');
+    expect(setupStep({ hasCaretaker: true, pinSet: true, done: false })).toBe('profiles');
+    expect(setupStep({ hasCaretaker: true, pinSet: true, done: true })).toBe('done');
   });
 });
 

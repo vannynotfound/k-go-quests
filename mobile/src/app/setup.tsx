@@ -45,7 +45,8 @@ function ProfilesStep() {
   const [pin, setPin] = useState('');
   return (
     <>
-      <T size={12}>Add a profile for each learner. Use a nickname or alias, not a legal name.</T>
+      <T size={13} bold>Do not use a legal name. Use a nickname or alias.</T>
+      <T size={12}>Add a profile for each learner.</T>
       {profiles.length ? <Eyebrow>Created: {profiles.map((p) => p.alias).join(', ')}</Eyebrow> : null}
       <Card>
         <Field label="Alias" value={alias} onChangeText={setAlias} placeholder="Juan" autoCapitalize="words" maxLength={30} />

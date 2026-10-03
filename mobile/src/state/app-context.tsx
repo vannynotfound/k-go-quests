@@ -18,7 +18,7 @@ interface AppContextValue {
   snapshot: Snapshot; queued: QueuedAttempt[]; outcomes: { input: AttemptInput; result: AttemptResult }[];
   notice: Notice | null; preferences: Preferences;
   toast(message: string, kind?: Notice['kind']): void; dismiss(): void;
-  step: SetupStep; saveCaretakerId(id: string): Promise<void>; setCaretakerPin(pin: string): Promise<void>; finishSetup(): Promise<void>;
+  step: SetupStep; saveCaretakerId(id: string): Promise<void>; caretakerSignedOut(): void; setCaretakerPin(pin: string): Promise<void>; finishSetup(): Promise<void>;
   createProfile(alias: string, pin: string, openAfter?: boolean): Promise<void>;
   selectProfile(id: string | null): void; lock(): void; unlock(pin: string): Promise<void>;
   queue(exerciseId: string, selectedOption: number, pack: Pack): Promise<void>;
@@ -43,7 +43,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [queued, setQueued] = useState<QueuedAttempt[]>([]);
   const [outcomes, setOutcomes] = useState<{ input: AttemptInput; result: AttemptResult }[]>([]);
   const [preferences, setPreferences] = useState<Preferences>(defaults);
-  const [saved, setSaved] = useState({ caretakerId: false, pinSet: false, done: false });
+  const [saved, setSaved] = useState({ hasCaretaker: false, pinSet: false, done: false });
   const [notice, setNotice] = useState<Notice | null>(null);
   const profileRef = useRef(profile); const snapshotRef = useRef(snapshot);
   const lockedRef = useRef(locked); const lastInteraction = useRef(0);
@@ -63,7 +63,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { void (async () => {
     try {
       const [labels, prefs, id, pin, done] = await Promise.all([vault.get('kgo-profiles'), vault.get('kgo-preferences'), vault.get(CARETAKER_ID), vault.get(CARETAKER_PIN), vault.get(SETUP_DONE)]);
-      setSaved({ caretakerId: Boolean(id), pinSet: Boolean(pin), done: Boolean(done) });
+      setSaved({ hasCaretaker: Boolean(id), pinSet: Boolean(pin), done: Boolean(done) });
       if (labels) setProfiles(JSON.parse(labels)); if (prefs) setPreferences({ ...defaults, ...JSON.parse(prefs) });
     } catch { toast('Profiles on this tablet could not be restored.', 'error'); }
     finally { setReady(true); }
@@ -85,7 +85,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try { await loadLocal(next.id); }
     catch (error) { lock(); throw error; }
   };
-  const saveCaretakerId = async (id: string) => { await vault.set(CARETAKER_ID, id); setSaved((s) => ({ ...s, caretakerId: true })); };
+  // Two steps so Setup stays on the sign-in step (Clerk mounted) until the Clerk sign-out has finished.
+  const saveCaretakerId = (id: string) => vault.set(CARETAKER_ID, id);
+  const caretakerSignedOut = () => setSaved((s) => ({ ...s, hasCaretaker: true }));
   const setCaretakerPin = async (pin: string) => {
     if (!isValidPin(pin)) throw new Error('Choose a 6-digit PIN.');
     await vault.set(CARETAKER_PIN, await pinDigest(CARETAKER_OWNER, pin)); setSaved((s) => ({ ...s, pinSet: true }));
@@ -131,7 +133,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await loadLocal(active.id); toast('Answer saved on this device.', 'success');
   };
   const updatePreferences = async (change: Partial<Preferences>) => { const next = { ...preferences, ...change }; await vault.set('kgo-preferences', JSON.stringify(next)); setPreferences(next); };
-  return <AppContext.Provider value={{ ready, profiles, profile, locked, snapshot, queued, outcomes, notice, preferences, toast, dismiss: () => setNotice(null), step: setupStep(saved), saveCaretakerId, setCaretakerPin, finishSetup, createProfile, selectProfile, lock, unlock, queue, updatePreferences }}>
+  return <AppContext.Provider value={{ ready, profiles, profile, locked, snapshot, queued, outcomes, notice, preferences, toast, dismiss: () => setNotice(null), step: setupStep(saved), saveCaretakerId, caretakerSignedOut, setCaretakerPin, finishSetup, createProfile, selectProfile, lock, unlock, queue, updatePreferences }}>
     <InteractionBoundary onTouch={() => { lastInteraction.current = Date.now(); }}>{children}</InteractionBoundary>
   </AppContext.Provider>;
 }

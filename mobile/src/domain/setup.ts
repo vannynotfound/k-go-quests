@@ -1,8 +1,8 @@
 export type SetupStep = 'sign-in' | 'caretaker-pin' | 'profiles' | 'done';
 
 /** Which part of Setup is next, given what this tablet has already saved. */
-export function setupStep(saved: { caretakerId: boolean; pinSet: boolean; done: boolean }): SetupStep {
-  if (!saved.caretakerId) return 'sign-in';
+export function setupStep(saved: { hasCaretaker: boolean; pinSet: boolean; done: boolean }): SetupStep {
+  if (!saved.hasCaretaker) return 'sign-in';
   if (!saved.pinSet) return 'caretaker-pin';
   return saved.done ? 'done' : 'profiles';
 }
