@@ -17,20 +17,8 @@ npx expo start
 Press `a` for Android, `i` for iOS, or scan the QR code with Expo Go. Everything
 here runs inside Expo Go: no custom native module, no development build required.
 
-**Pointing it at the backend.** In development the app derives the API URL from
-the Metro host, so a device on the same Wi-Fi as your computer just works. To
-override it:
-
-```bash
-EXPO_PUBLIC_API_URL=http://192.168.1.10:3000/api/v1 npx expo start
-```
-
-Use your computer's LAN IP, not `localhost` — `localhost` on a tablet means the
-tablet. For Expo web, add the exact browser origin to `CORS_ORIGINS` in the
-backend's `.env`.
-
 There is also a **preview mode** that fills every screen with sample data and no
-server, for walking through the UI without a running backend.
+server, for walking through the UI.
 
 ## Layout
 

@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Building2, Eye, EyeOff, GraduationCap, Lock, Mail, Presentation } from 'lucide-react-native';
+import { Eye, EyeOff, GraduationCap, Lock, Mail } from 'lucide-react-native';
 
 import { useApp } from '@/state/app-context';
 import type { Role } from '@/domain/types';
@@ -14,8 +14,6 @@ import { radius, tokens, useTheme } from '@/ui/theme';
 
 const roles: { role: Role; label: string; icon: typeof GraduationCap }[] = [
   { role: 'STUDENT', label: 'Student', icon: GraduationCap },
-  { role: 'TEACHER', label: 'Teacher', icon: Presentation },
-  { role: 'LGU_ADMIN', label: 'Admin', icon: Building2 },
 ];
 
 export default function SignIn() {

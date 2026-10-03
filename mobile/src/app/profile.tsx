@@ -31,7 +31,7 @@ export default function Profile() {
   const school = snapshot.schools.find((item) => item.id === classroom?.schoolId);
 
   const stats = [
-    { value: coins, label: 'Khan-Coins', color: theme.text },
+    { value: coins, label: 'Coins', color: theme.text },
     { value: mastered, label: 'skills mastered', color: tokens.state.success },
     { value: outcomes.length, label: 'answers confirmed', color: theme.text },
   ];

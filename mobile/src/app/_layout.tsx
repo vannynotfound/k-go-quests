@@ -60,16 +60,7 @@ function Shell() {
           <Stack.Screen name="(student)" />
           <Stack.Screen name="subject" />
           <Stack.Screen name="lesson" />
-          <Stack.Screen name="voucher" />
           <Stack.Screen name="profile" />
-        </Stack.Protected>
-        <Stack.Protected guard={unlocked && role === 'TEACHER'}>
-          <Stack.Screen name="(teacher)" />
-          <Stack.Screen name="learner" />
-        </Stack.Protected>
-        <Stack.Protected guard={unlocked && role === 'LGU_ADMIN'}>
-          <Stack.Screen name="(admin)" />
-          <Stack.Screen name="pack" />
         </Stack.Protected>
       </Stack>
       <Toast />
