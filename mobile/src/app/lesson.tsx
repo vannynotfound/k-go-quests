@@ -181,7 +181,7 @@ function VerdictBar({ kind, coins }: { kind: Verdict; coins: number }) {
   const background = kind === 'wrong' ? tokens.state.critical : '#0c4a3e';
   const Icon = kind === 'wrong' ? TriangleAlert : kind === 'correct' ? Check : RefreshCw;
   const message = kind === 'correct'
-    ? `Correct! +${coins} Khan-Coins earned`
+    ? `Correct! +${coins} Coins earned`
     : kind === 'wrong'
       ? 'Not quite — the correct answer is shown above'
       : 'Saved on this device — checked when you sync';

@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { Easing, FadeIn, FadeOut, useAnimatedStyle, useSharedValue, withRepeat, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Award, BookOpen, Check, ChevronRight, CircleHelp, Coins, Download, Gift, Globe, Info, Layers, LayoutGrid, LogOut, MapPin, Repeat2, School, ShieldCheck, Smartphone, Sparkles, Trophy, UserCog, UserPlus, Users, ClipboardList, ChartColumn } from 'lucide-react-native';
+import { BookOpen, Check, ChevronRight, CircleHelp, Coins, Download, Gift, Globe, Info, LogOut, MapPin, Repeat2, Sparkles, UserCog, ChartColumn } from 'lucide-react-native';
 
 import { useApp } from '../state/app-context';
 import { initials } from '../domain/format';
@@ -104,22 +104,9 @@ export function AppBar({ title, subtitle, onMenu }: { title: string; subtitle?: 
 const TABS = [
   // Nav Bar · Student (472:152)
   { name: 'learn', label: 'Learn', icon: BookOpen },
-  { name: 'league', label: 'League', icon: Trophy },
   { name: 'tutor', label: 'Tutor', icon: Sparkles },
   { name: 'progress', label: 'Progress', icon: ChartColumn },
   { name: 'rewards', label: 'Rewards', icon: Gift },
-  // Nav Bar · Teacher
-  { name: 'class', label: 'Class', icon: LayoutGrid },
-  { name: 'learners', label: 'Learners', icon: Users },
-  { name: 'alerts', label: 'Alerts', icon: ShieldCheck },
-  { name: 'quiz', label: 'Quiz', icon: ClipboardList },
-  { name: 'grow', label: 'Grow', icon: Award },
-  // Nav Bar · LGU Admin
-  { name: 'schools', label: 'Schools', icon: School },
-  { name: 'impact', label: 'Impact', icon: ChartColumn },
-  { name: 'devices', label: 'Devices', icon: Smartphone },
-  { name: 'content', label: 'Content', icon: Layers },
-  { name: 'users', label: 'Users', icon: UserPlus },
 ] as const;
 
 /** Shape of the slice of the tab-bar props this component reads. */
@@ -183,7 +170,7 @@ export function SyncBanner() {
   const Icon = syncing ? Info : Check;
   const message = syncing
     ? 'Hub node detected — encrypted burst sync started'
-    : `${justSynced?.pushed} progress log${justSynced?.pushed === 1 ? '' : 's'} pushed in ${justSynced?.seconds} s · league updated`;
+    : `${justSynced?.pushed} progress log${justSynced?.pushed === 1 ? '' : 's'} pushed in ${justSynced?.seconds} s`;
   return (
     <Animated.View
       entering={FadeIn.duration(220)}
@@ -270,7 +257,7 @@ function SidebarBody({ alias, detail, coins, megabytes, language, appearance, on
       </Row>
 
       <View style={{ paddingHorizontal: 18, paddingTop: 14, paddingBottom: 4, flexDirection: 'row' }}>
-        <Pill color={tokens.brand.sunDeep} tint={tokens.tint.sun} icon={Coins}>{`${coins} Khan-Coins`}</Pill>
+        <Pill color={tokens.brand.sunDeep} tint={tokens.tint.sun} icon={Coins}>{`${coins} Coins`}</Pill>
       </View>
 
       <View style={{ paddingHorizontal: 8, paddingVertical: 10, gap: 2 }}>

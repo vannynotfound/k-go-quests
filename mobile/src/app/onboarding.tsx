@@ -15,7 +15,7 @@ const steps = [
     hero: WifiOff,
     corners: [Download, BookOpen, Leaf],
     title: 'No signal? No problem.',
-    body: 'Over 1,000 Khan Academy modules in Math, Science, English and Filipino live on the tablet itself. Lessons open with the radio off and cost zero data.',
+    body: 'Lessons in Math, Science, English and Filipino live on the tablet itself. They open with the radio off and cost zero data.',
     cta: 'Next',
   },
   {
@@ -29,7 +29,7 @@ const steps = [
     hero: Trophy,
     corners: [Gift, Trophy, Leaf],
     title: 'Your growth carries the guild.',
-    body: 'Classrooms compete in monthly barangay leagues ranked on improvement, not raw scores. Khan-Coins turn into rice, school supplies and solar lamps at the hub.',
+    body: 'Every correct answer earns Coins, so you can watch your own progress add up.',
     cta: 'Get started',
   },
 ];
