@@ -97,3 +97,31 @@ export function quests(packs: Pack[], log: Attempt[], limit = 3): Quest[] {
     .flatMap((s) => (open.get(s.skillId) ?? []).map((q) => ({ ...q, skillId: s.skillId, mastery: s.mastery })))
     .slice(0, limit);
 }
+
+/**
+ * The Demo Learner's starting history, backdated from `now`; the same `now` gives the same Attempts.
+ * Last month: five wrong Counted Attempts on one Skill (the one Plateau Flag) and one Skill answered right until Mastered.
+ * This month: a third Skill goes up.
+ */
+export function demoHistory(packs: Pack[], now: Date): Attempt[] {
+  const bySkill = new Map<string, { id: string; correctOption: number; options: number }[]>();
+  for (const p of packs) for (const l of p.lessons) for (const e of l.exercises) bySkill.set(l.skillCode, [...(bySkill.get(l.skillCode) ?? []), { id: e.id, correctOption: e.correctOption, options: e.options.length }]);
+  const pick = (n: number, taken: string[]) => {
+    const found = [...bySkill].find(([id, ex]) => ex.length >= n && !taken.includes(id));
+    if (!found) throw new Error('The packs have too few Exercises for a demo history.');
+    return found;
+  };
+  const [plateau, plateauEx] = pick(PLATEAU_ATTEMPTS, []);
+  const [mastered, masteredEx] = pick(3, [plateau]);
+  const [, risingEx] = pick(2, [plateau, mastered]);
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const lastMonth = (day: number) => new Date(now.getFullYear(), now.getMonth() - 1, day, 12).getTime();
+  // This month: minutes before `now`, never before the month began.
+  const thisMonth = (i: number) => Math.max(monthStart, now.getTime() - (2 - i) * 60000);
+  const rows = [
+    ...plateauEx.slice(0, PLATEAU_ATTEMPTS).map((e, i) => ({ e, right: false, t: lastMonth(2 + i) })),
+    ...masteredEx.slice(0, 3).map((e, i) => ({ e, right: true, t: lastMonth(8 + i) })),
+    ...risingEx.slice(0, 2).map((e, i) => ({ e, right: true, t: thisMonth(i) })),
+  ];
+  return rows.map(({ e, right, t }, i) => ({ id: `demo-${i}`, exerciseId: e.id, selectedOption: right ? e.correctOption : (e.correctOption + 1) % e.options, at: new Date(t).toISOString() }));
+}

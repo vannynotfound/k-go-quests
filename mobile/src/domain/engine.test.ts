@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SKILL_PARAMETERS, starterPacks } from '../content/starter-pack';
-import { COINS_PER_CORRECT, MASTERED_AT, PLATEAU_ATTEMPTS, PLATEAU_BELOW, grade, growth, learningState, quests, updateMastery, type Attempt } from './engine';
+import { COINS_PER_CORRECT, MASTERED_AT, PLATEAU_ATTEMPTS, PLATEAU_BELOW, demoHistory, grade, growth, learningState, quests, updateMastery, type Attempt } from './engine';
 
 const NOW = '2026-01-01T00:00:00.000Z';
 const P = DEFAULT_SKILL_PARAMETERS;
@@ -176,5 +176,29 @@ describe('quests', () => {
   it('is empty when nothing is left', () => {
     const log = skillIds.flatMap((id) => answerAll(id, false));
     expect(quest(log)).toEqual([]);
+  });
+});
+
+describe('demoHistory', () => {
+  const now = new Date(2026, 4, 17, 10, 30);
+  const log = demoHistory(starterPacks, now);
+  const g = growth(starterPacks, log, now);
+  const flags = (l: Attempt[]) => learningState(starterPacks, l).skills.filter((s) => s.plateau).length;
+  it('is deterministic for a given time', () => expect(demoHistory(starterPacks, new Date(now))).toEqual(log));
+  it('is backdated, with unique ids and only Counted Attempts', () => {
+    expect(log.every((a) => Date.parse(a.at) <= now.getTime())).toBe(true);
+    expect(new Set(log.map((a) => a.id)).size).toBe(log.length);
+    expect(new Set(log.map((a) => a.exerciseId)).size).toBe(log.length);
+  });
+  it('gives nonzero Growth for this month and last month', () => {
+    expect(g.thisMonth.up).toBeGreaterThan(0);
+    expect(g.lastMonth.up).toBeGreaterThan(0);
+  });
+  it('yields exactly one Plateau Flag', () => expect(flags(log)).toBe(1));
+  it('holds at the very start of a month and in January', () => {
+    for (const t of [new Date(2026, 0, 1), new Date(2026, 5, 1)]) {
+      const h = demoHistory(starterPacks, t), gr = growth(starterPacks, h, t);
+      expect([gr.thisMonth.up > 0, gr.lastMonth.up > 0, flags(h)]).toEqual([true, true, 1]);
+    }
   });
 });
