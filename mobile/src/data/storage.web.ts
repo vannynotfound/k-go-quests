@@ -10,5 +10,6 @@ const repository: Repository = {
   record: async (owner, attempt) => { logs.set(owner, [...(logs.get(owner) ?? []), attempt]); },
   purchases: async (owner) => [...(bought.get(owner) ?? [])],
   recordPurchase: async (owner, purchase) => { bought.set(owner, [...(bought.get(owner) ?? []), purchase]); },
+  deleteOwner: async (owner) => { logs.delete(owner); bought.delete(owner); },
 };
 export const getRepository = async () => repository;
