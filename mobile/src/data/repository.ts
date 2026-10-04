@@ -1,4 +1,5 @@
 import type { Attempt } from '../domain/engine';
+import type { Purchase } from '../domain/shop';
 
 export type SqlValue = string | number | null;
 export interface Database {
@@ -9,22 +10,25 @@ export interface Database {
 }
 export interface Cipher { encrypt(owner: string, key: string, value: unknown): Promise<string>; decrypt<T>(owner: string, key: string, value: string): Promise<T>; }
 
-/** One table: a Profile's Attempt log, each row sealed under that Profile's key. Fresh database, no migration. */
+/** A Profile's Attempt log and Shop Purchases, each row sealed under that Profile's key. Tables are only ever added, so older databases just gain the new one. */
 export const LOCAL_SCHEMA = `
 PRAGMA journal_mode = WAL;
 CREATE TABLE IF NOT EXISTS attempts (owner TEXT NOT NULL, attempt_id TEXT NOT NULL, ordinal INTEGER NOT NULL, cipher TEXT NOT NULL, PRIMARY KEY(owner, attempt_id));
 CREATE INDEX IF NOT EXISTS attempts_by_owner ON attempts(owner, ordinal);
-PRAGMA user_version = 2;`;
+CREATE TABLE IF NOT EXISTS purchases (owner TEXT NOT NULL, cosmetic_id TEXT NOT NULL, ordinal INTEGER NOT NULL, cipher TEXT NOT NULL, PRIMARY KEY(owner, cosmetic_id));
+PRAGMA user_version = 3;`;
 
 export interface Repository {
   attempts(owner: string): Promise<Attempt[]>;
   record(owner: string, attempt: Attempt): Promise<void>;
+  purchases(owner: string): Promise<Purchase[]>;
+  recordPurchase(owner: string, purchase: Purchase): Promise<void>;
 }
 export class LocalRepository implements Repository {
   constructor(private db: Database, private cipher: Cipher) {}
   async initialize() {
     const version = await this.db.first<{ user_version: number }>('PRAGMA user_version');
-    if ((version?.user_version ?? 0) > 2) throw new Error('This data requires a newer version of K-Go Quests.');
+    if ((version?.user_version ?? 0) > 3) throw new Error('This data requires a newer version of K-Go Quests.');
     await this.db.exec(LOCAL_SCHEMA);
   }
   async attempts(owner: string) {
@@ -36,5 +40,15 @@ export class LocalRepository implements Repository {
   async record(owner: string, attempt: Attempt) {
     const cipher = await this.cipher.encrypt(owner, attempt.id, attempt);
     await this.db.run('INSERT INTO attempts VALUES (?, ?, ?, ?)', [owner, attempt.id, Date.now(), cipher]);
+  }
+  async purchases(owner: string) {
+    const rows = await this.db.all<{ cosmetic_id: string; cipher: string }>('SELECT cosmetic_id, cipher FROM purchases WHERE owner = ? ORDER BY ordinal', [owner]);
+    const opened = await Promise.all(rows.map((r) => this.cipher.decrypt<Purchase>(owner, r.cosmetic_id, r.cipher).catch(() => null)));
+    return opened.filter((p): p is Purchase => p !== null);
+  }
+  /** The primary key makes a second purchase of the same Cosmetic fail, and nothing ever updates or deletes a row. */
+  async recordPurchase(owner: string, purchase: Purchase) {
+    const cipher = await this.cipher.encrypt(owner, purchase.cosmeticId, purchase);
+    await this.db.run('INSERT INTO purchases VALUES (?, ?, ?, ?)', [owner, purchase.cosmeticId, Date.now(), cipher]);
   }
 }

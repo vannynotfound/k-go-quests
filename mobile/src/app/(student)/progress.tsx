@@ -10,14 +10,14 @@ import { Screen } from '@/ui/screen';
 import { subjectTheme, tokens, useTheme } from '@/ui/theme';
 
 export default function Progress() {
-  const { learning } = useApp();
+  const { learning, balance } = useApp();
   const theme = useTheme();
 
   return (
     <Screen chrome title="My Progress" caption="Estimates from your answers">
       <Card style={{ backgroundColor: tokens.tint.sun, borderColor: `${tokens.brand.sun}80`, gap: 6 }}>
         <Eyebrow>Coins</Eyebrow>
-        <T variant="displayL" style={{ fontSize: 34, lineHeight: 38 }}>{learning.coins}</T>
+        <T variant="displayL" style={{ fontSize: 34, lineHeight: 38 }}>{balance}</T>
       </Card>
 
       {starterPacks.map((pack) => {

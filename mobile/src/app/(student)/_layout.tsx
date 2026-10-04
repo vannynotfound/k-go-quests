@@ -9,7 +9,7 @@ export default function StudentTabs() {
     >
       <Tabs.Screen name="learn" options={{ title: 'Learn' }} />
       <Tabs.Screen name="progress" options={{ title: 'Progress' }} />
-      <Tabs.Screen name="rewards" options={{ title: 'Rewards' }} />
+      <Tabs.Screen name="rewards" options={{ title: 'Shop' }} />
     </Tabs>
   );
 }

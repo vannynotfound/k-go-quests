@@ -4,6 +4,7 @@ import { randomUUID } from 'expo-crypto';
 import type { Profile } from '../domain/types';
 import { starterPacks } from '../content/starter-pack';
 import { grade, learningState, type Attempt, type Grade, type LearningState } from '../domain/engine';
+import { balance as coinBalance, buy, type Purchase } from '../domain/shop';
 import { setupStep, type SetupStep } from '../domain/setup';
 import { isIdle, isValidPin, lockedOut, recordFailure, type Lockout } from '../domain/pin-lock';
 import { getRepository } from '../data/storage';
@@ -15,13 +16,14 @@ interface Preferences { appearance: Appearance; language: string; }
 interface Notice { message: string; kind: 'success' | 'error' | 'info'; }
 interface AppContextValue {
   ready: boolean; profiles: Profile[]; profile: Profile | null; locked: boolean;
-  attempts: Attempt[]; learning: LearningState;
+  attempts: Attempt[]; learning: LearningState; purchases: Purchase[]; balance: number;
   notice: Notice | null; preferences: Preferences;
   toast(message: string, kind?: Notice['kind']): void; dismiss(): void;
   step: SetupStep; saveCaretakerId(id: string): Promise<void>; caretakerSignedOut(): void; setCaretakerPin(pin: string): Promise<void>; finishSetup(): Promise<void>;
   createProfile(alias: string, pin: string, openAfter?: boolean): Promise<void>;
   selectProfile(id: string | null): void; lock(): void; unlock(pin: string): Promise<void>;
   answer(exerciseId: string, selectedOption: number): Promise<Grade>;
+  buyBadge(cosmeticId: string): Promise<void>;
   updatePreferences(change: Partial<Preferences>): Promise<void>;
 }
 const AppContext = createContext<AppContextValue | null>(null);
@@ -41,22 +43,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [locked, setLocked] = useState(true);
   const [attempts, setAttempts] = useState<Attempt[]>([]);
   const learning = useMemo(() => learningState(starterPacks, attempts), [attempts]);
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const balance = coinBalance(learning.coins, purchases);
   const [preferences, setPreferences] = useState<Preferences>(defaults);
   const [saved, setSaved] = useState({ hasCaretaker: false, pinSet: false, done: false });
   const [notice, setNotice] = useState<Notice | null>(null);
-  const profileRef = useRef(profile); const attemptsRef = useRef(attempts);
+  const profileRef = useRef(profile); const attemptsRef = useRef(attempts); const purchasesRef = useRef(purchases);
   const lockedRef = useRef(locked); const lastInteraction = useRef(0);
 
   const toast = useCallback((message: string, kind: Notice['kind'] = 'info') => setNotice({ message, kind }), []);
   // Refs mirror committed state so async handlers read fresh values; set after every commit, never during render.
-  useEffect(() => { profileRef.current = profile; attemptsRef.current = attempts; lockedRef.current = locked; });
+  useEffect(() => { profileRef.current = profile; attemptsRef.current = attempts; purchasesRef.current = purchases; lockedRef.current = locked; });
 
-  const forget = () => { attemptsRef.current = []; setAttempts([]); };
+  const forget = () => { attemptsRef.current = []; setAttempts([]); purchasesRef.current = []; setPurchases([]); };
   const lock = useCallback(() => { lockedRef.current = true; setLocked(true); }, []);
   const loadLocal = useCallback(async (owner: string) => {
     const repo = await getRepository();
-    const log = await repo.attempts(owner);
-    if (profileRef.current?.id === owner && !lockedRef.current) { attemptsRef.current = log; setAttempts(log); }
+    const [log, bought] = await Promise.all([repo.attempts(owner), repo.purchases(owner)]);
+    if (profileRef.current?.id === owner && !lockedRef.current) { attemptsRef.current = log; setAttempts(log); purchasesRef.current = bought; setPurchases(bought); }
   }, []);
 
   useEffect(() => { void (async () => {
@@ -130,8 +134,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     attemptsRef.current = next; setAttempts(next);
     return result;
   };
+  const buyBadge = async (cosmeticId: string) => {
+    const active = profileRef.current;
+    if (!active || lockedRef.current) throw new Error('Unlock your profile to use the Shop.');
+    const purchase = buy(learningState(starterPacks, attemptsRef.current).coins, purchasesRef.current, cosmeticId, new Date().toISOString());
+    await (await getRepository()).recordPurchase(active.id, purchase);
+    const next = [...purchasesRef.current, purchase];
+    purchasesRef.current = next; setPurchases(next);
+  };
   const updatePreferences = async (change: Partial<Preferences>) => { const next = { ...preferences, ...change }; await vault.set('kgo-preferences', JSON.stringify(next)); setPreferences(next); };
-  return <AppContext.Provider value={{ ready, profiles, profile, locked, attempts, learning, notice, preferences, toast, dismiss: () => setNotice(null), step: setupStep(saved), saveCaretakerId, caretakerSignedOut, setCaretakerPin, finishSetup, createProfile, selectProfile, lock, unlock, answer, updatePreferences }}>
+  return <AppContext.Provider value={{ ready, profiles, profile, locked, attempts, learning, purchases, balance, notice, preferences, toast, dismiss: () => setNotice(null), step: setupStep(saved), saveCaretakerId, caretakerSignedOut, setCaretakerPin, finishSetup, createProfile, selectProfile, lock, unlock, answer, buyBadge, updatePreferences }}>
     <InteractionBoundary onTouch={() => { lastInteraction.current = Date.now(); }}>{children}</InteractionBoundary>
   </AppContext.Provider>;
 }
