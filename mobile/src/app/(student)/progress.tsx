@@ -12,7 +12,7 @@ import { Screen } from '@/ui/screen';
 import { subjectTheme, tokens, useTheme } from '@/ui/theme';
 
 export default function Progress() {
-  const { learning, attempts } = useApp();
+  const { learning, attempts, balance } = useApp();
   const router = useRouter();
   const g = useMemo(() => growth(starterPacks, attempts, new Date()), [attempts]);
   const theme = useTheme();
@@ -21,7 +21,7 @@ export default function Progress() {
     <Screen chrome title="My Progress" caption="Estimates from your answers">
       <Card style={{ backgroundColor: tokens.tint.sun, borderColor: `${tokens.brand.sun}80`, gap: 6 }}>
         <Eyebrow>Coins</Eyebrow>
-        <T variant="displayL" style={{ fontSize: 34, lineHeight: 38 }}>{learning.coins}</T>
+        <T variant="displayL" style={{ fontSize: 34, lineHeight: 38 }}>{balance}</T>
       </Card>
 
       <Card style={{ gap: 8 }}>

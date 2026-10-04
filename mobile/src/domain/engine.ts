@@ -80,3 +80,20 @@ export function grade(packs: Pack[], log: Attempt[], answer: Omit<Attempt, 'at'>
   const counted = !log.some((a) => a.exerciseId === answer.exerciseId);
   return { correct, counted, coins: correct && counted ? COINS_PER_CORRECT : 0, correctOption: ex.correctOption, attempt: { ...answer, at: now } };
 }
+
+export interface Quest { exerciseId: string; lessonId: string; skillId: string; mastery: number; }
+
+/** Unanswered Exercises from Skills that are not Mastered, lowest Mastery first, then pack order. */
+export function quests(packs: Pack[], log: Attempt[], limit = 3): Quest[] {
+  const answered = new Set(log.map((a) => a.exerciseId));
+  const open = new Map<string, { exerciseId: string; lessonId: string }[]>();
+  for (const p of packs) for (const l of p.lessons) for (const e of l.exercises) {
+    if (!answered.has(e.id)) open.set(l.skillCode, [...(open.get(l.skillCode) ?? []), { exerciseId: e.id, lessonId: l.id }]);
+  }
+  // Array.sort is stable, so equal Mastery keeps pack order.
+  return learningState(packs, log).skills
+    .filter((s) => !s.mastered)
+    .sort((a, b) => a.mastery - b.mastery)
+    .flatMap((s) => (open.get(s.skillId) ?? []).map((q) => ({ ...q, skillId: s.skillId, mastery: s.mastery })))
+    .slice(0, limit);
+}

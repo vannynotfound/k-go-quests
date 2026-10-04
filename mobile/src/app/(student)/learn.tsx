@@ -2,6 +2,8 @@ import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { BookOpen, ChartColumn, Leaf, Sparkles } from 'lucide-react-native';
 
+import { quests } from '@/domain/engine';
+import { useApp } from '@/state/app-context';
 import type { Subject } from '@/domain/types';
 import { subjectTitles } from '@/domain/subjects';
 import { starterPacks } from '@/content/starter-pack';
@@ -16,11 +18,29 @@ const subjectIcon: Record<Subject, typeof BookOpen> = {
 export default function Learn() {
   const theme = useTheme();
   const router = useRouter();
+  const { attempts } = useApp();
+  const nextQuests = quests(starterPacks, attempts);
 
   const lessonCount = starterPacks.reduce((total, pack) => total + pack.lessons.length, 0);
 
   return (
     <Screen chrome title="Subjects" caption={`${lessonCount} lesson${lessonCount === 1 ? '' : 's'} on this tablet`}>
+      {nextQuests.length ? (
+        <>
+          <Eyebrow>Quests · practise next</Eyebrow>
+          {nextQuests.map((q, index) => {
+            const lesson = starterPacks.flatMap((p) => p.lessons).find((l) => l.id === q.lessonId)!;
+            const exercise = lesson.exercises.find((e) => e.id === q.exerciseId)!;
+            return (
+              <Card key={q.exerciseId} index={index} onPress={() => router.push({ pathname: '/lesson', params: { lessonId: q.lessonId, exerciseId: q.exerciseId } })}>
+                <T variant="titleS" lines={2}>{exercise.prompt}</T>
+                <T variant="bodyS" color={theme.muted} lines={1}>{`${lesson.title} · Mastery ${Math.round(q.mastery * 100)}%`}</T>
+              </Card>
+            );
+          })}
+        </>
+      ) : null}
+
       <Eyebrow>Your subjects · MATATAG Grade 5</Eyebrow>
 
       {starterPacks.map((pack, index) => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SKILL_PARAMETERS, starterPacks } from '../content/starter-pack';
-import { COINS_PER_CORRECT, MASTERED_AT, PLATEAU_ATTEMPTS, PLATEAU_BELOW, grade, growth, learningState, updateMastery, type Attempt } from './engine';
+import { COINS_PER_CORRECT, MASTERED_AT, PLATEAU_ATTEMPTS, PLATEAU_BELOW, grade, growth, learningState, quests, updateMastery, type Attempt } from './engine';
 
 const NOW = '2026-01-01T00:00:00.000Z';
 const P = DEFAULT_SKILL_PARAMETERS;
@@ -138,5 +138,43 @@ describe('Plateau Flag', () => {
   it('counts only Counted Attempts', () => {
     const log = [0, 1, 2, 3].flatMap((i) => [answer(i, false, i * 2), answer(i, false, i * 2 + 1)]);
     expect(learningState(starterPacks, log).skills.find((s) => s.skillId === skill)!.plateau).toBe(false);
+  });
+});
+
+describe('quests', () => {
+  const exercisesOf = (id: string) => starterPacks.flatMap((p) => p.lessons).filter((l) => l.skillCode === id).flatMap((l) => l.exercises);
+  const skillIds = starterPacks.flatMap((p) => p.skills.map((s) => s.id));
+  const answerAll = (id: string, right: boolean): Attempt[] => exercisesOf(id).map((e, i) => ({ id: `${id}${i}`, exerciseId: e.id, selectedOption: right ? e.correctOption : (e.correctOption + 1) % e.options.length, at: at(i) }));
+  const quest = (log: Attempt[], limit?: number) => quests(starterPacks, log, limit);
+
+  it('gives a new Profile three Quests in pack order', () => {
+    const q = quest([]);
+    expect(q).toHaveLength(3);
+    expect(q.map((x) => x.exerciseId)).toEqual(exercisesOf(skillIds[0]).slice(0, 3).map((e) => e.id));
+    expect(q[0]).toMatchObject({ skillId: skillIds[0], lessonId: expect.any(String) });
+  });
+  it('puts the lowest Mastery first', () => {
+    const ahead = quest(answerAll(skillIds[0], true).slice(0, 1), 100);
+    expect(ahead[0].skillId).not.toBe(skillIds[0]);
+    expect(ahead.at(-1)!.skillId).toBe(skillIds[0]);
+    const behind = quest([answer(0, false)]);
+    expect(behind[0].skillId).toBe(skill);
+  });
+  it('never offers an answered Exercise', () => {
+    const log = [answer(0, true)];
+    expect(quest(log, 100).map((x) => x.exerciseId)).not.toContain(exs[0].id);
+  });
+  it('skips Mastered Skills', () => {
+    const log = [0, 1, 2].map((i) => answer(i, true));
+    expect(learningState(starterPacks, log).skills.find((s) => s.skillId === skill)!.mastered).toBe(true);
+    expect(quest(log, 100).some((x) => x.skillId === skill)).toBe(false);
+  });
+  it('skips Skills whose Exercises are all answered', () => {
+    const log = answerAll(skill, false);
+    expect(quest(log, 100).some((x) => x.skillId === skill)).toBe(false);
+  });
+  it('is empty when nothing is left', () => {
+    const log = skillIds.flatMap((id) => answerAll(id, false));
+    expect(quest(log)).toEqual([]);
   });
 });
