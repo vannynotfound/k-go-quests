@@ -1,10 +1,11 @@
+import { FITTED_SKILL_PARAMETERS } from './fitted-parameters';
 import { HINT_TRANSLATIONS } from './hint-translations';
 import type { Exercise, Lesson, Pack, SkillSpec, Subject } from '../domain/types';
 
-/** Every Skill starts with these until a Pack Author tunes them. */
+/** Fallback for any Skill without fitted parameters. */
 export const DEFAULT_SKILL_PARAMETERS = { prior: 0.2, learn: 0.08, guess: 0.2, slip: 0.1 };
 
-const skill = (id: string): SkillSpec => ({ id, parameters: { ...DEFAULT_SKILL_PARAMETERS } });
+const skill = (id: string): SkillSpec => ({ id, parameters: { ...(FITTED_SKILL_PARAMETERS[id] ?? DEFAULT_SKILL_PARAMETERS) } });
 
 /** Authoring shorthand: `answer` is the index of the correct option. */
 type Q = [prompt: string, options: string[], answer: number];
