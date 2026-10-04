@@ -38,7 +38,7 @@ const TABS = [
   // Nav Bar · Student (472:152)
   { name: 'learn', label: 'Learn', icon: BookOpen },
   { name: 'progress', label: 'Progress', icon: ChartColumn },
-  { name: 'rewards', label: 'Rewards', icon: Gift },
+  { name: 'rewards', label: 'Shop', icon: Gift },
 ] as const;
 
 /** Shape of the slice of the tab-bar props this component reads. */
@@ -93,13 +93,13 @@ function NavTab({ label, icon: Icon, active, color, onPress }: { label: string; 
 
 /** Sidebar Menu (455:301): slides in over a scrim. */
 export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { profile, learning, preferences, updatePreferences, selectProfile, lock } = useApp();
+  const { profile, balance, preferences, updatePreferences, selectProfile, lock } = useApp();
   const theme = useTheme();
   const shift = useSharedValue(open ? 0 : -SIDEBAR_WIDTH);
   useEffect(() => { shift.value = withSpring(open ? 0 : -SIDEBAR_WIDTH, { damping: 22, stiffness: 210 }); }, [open, shift]);
   const panel = useAnimatedStyle(() => ({ transform: [{ translateX: shift.value }] }));
   const scrim = useAnimatedStyle(() => ({ opacity: 1 - Math.abs(shift.value) / SIDEBAR_WIDTH }));
-  const coins = learning.coins;
+  const coins = balance;
   const megabytes = Math.round(JSON.stringify(starterPacks).length / 1024);
 
   if (!open) return null;
