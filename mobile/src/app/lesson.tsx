@@ -19,7 +19,7 @@ type Verdict = 'correct' | 'wrong' | 'saved';
 
 export default function ModuleScreen() {
   const { lessonId, exerciseId } = useLocalSearchParams<{ lessonId?: string; exerciseId?: string }>();
-  const { outcomes, queued, queue, preferences } = useApp();
+  const { attempts, answer, preferences } = useApp();
   const theme = useTheme();
   const router = useRouter();
   const [playlist, setPlaylist] = useState<Exercise[] | null>(null);
@@ -45,7 +45,7 @@ export default function ModuleScreen() {
   }
 
   const { pack, lesson } = found;
-  const answered = new Set([...outcomes.map((row) => row.input.exerciseId), ...queued.map((item) => item.input.exerciseId)]);
+  const answered = new Set(attempts.map((a) => a.exerciseId));
   const unanswered = lesson.exercises.filter((item) => !answered.has(item.id));
   const exercise = playlist ? playlist[index] : unanswered[0];
 
@@ -111,9 +111,9 @@ export default function ModuleScreen() {
           task={async () => {
             if (choice === null) return;
             if (!verdict) {
-              await queue(exercise.id, choice, pack);
+              const graded = await answer(exercise.id, choice);
               if (!playlist) { setPlaylist(unanswered); setIndex(0); }
-              setVerdict(exercise.correctOption === choice ? 'correct' : 'wrong');
+              setVerdict(graded.correct ? 'correct' : 'wrong');
               return;
             }
             setVerdict(null);

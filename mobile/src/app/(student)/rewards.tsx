@@ -7,8 +7,8 @@ import { Screen } from '@/ui/screen';
 import { tokens } from '@/ui/theme';
 
 export default function Rewards() {
-  const { snapshot } = useApp();
-  const coins = snapshot.progress?.coinBalance ?? 0;
+  const { learning } = useApp();
+  const coins = learning.coins;
 
   return (
     <Screen chrome title="My Coins" caption="Earned from correct answers">

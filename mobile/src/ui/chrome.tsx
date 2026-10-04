@@ -93,13 +93,13 @@ function NavTab({ label, icon: Icon, active, color, onPress }: { label: string; 
 
 /** Sidebar Menu (455:301): slides in over a scrim. */
 export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { profile, snapshot, preferences, updatePreferences, selectProfile, lock } = useApp();
+  const { profile, learning, preferences, updatePreferences, selectProfile, lock } = useApp();
   const theme = useTheme();
   const shift = useSharedValue(open ? 0 : -SIDEBAR_WIDTH);
   useEffect(() => { shift.value = withSpring(open ? 0 : -SIDEBAR_WIDTH, { damping: 22, stiffness: 210 }); }, [open, shift]);
   const panel = useAnimatedStyle(() => ({ transform: [{ translateX: shift.value }] }));
   const scrim = useAnimatedStyle(() => ({ opacity: 1 - Math.abs(shift.value) / SIDEBAR_WIDTH }));
-  const coins = snapshot.progress?.coinBalance ?? 0;
+  const coins = learning.coins;
   const megabytes = Math.round(JSON.stringify(starterPacks).length / 1024);
 
   if (!open) return null;
@@ -111,7 +111,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
       <Animated.View style={[{ position: 'absolute', left: 0, top: 0, bottom: 0, width: SIDEBAR_WIDTH, backgroundColor: theme.surface }, panel]}>
         <SidebarBody
           alias={profile?.alias ?? 'Learner'}
-          detail={snapshot.classrooms[0]?.name ?? 'No classroom yet'}
+          detail="Grade 5"
           coins={coins}
           megabytes={megabytes}
           language={preferences.language}
