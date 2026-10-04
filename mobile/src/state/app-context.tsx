@@ -5,7 +5,7 @@ import type { Profile } from '../domain/types';
 import { starterPacks } from '../content/starter-pack';
 import { grade, learningState, type Attempt, type Grade, type LearningState } from '../domain/engine';
 import { balance as coinBalance, buy, type Purchase } from '../domain/shop';
-import { setupStep, type SetupStep } from '../domain/setup';
+import { confirmCaretaker, setupStep, type SetupStep } from '../domain/setup';
 import { isIdle, isValidPin, lockedOut, recordFailure, type Lockout } from '../domain/pin-lock';
 import { getRepository } from '../data/storage';
 import { pinDigest } from '../data/crypto';
@@ -22,6 +22,9 @@ interface AppContextValue {
   step: SetupStep; saveCaretakerId(id: string): Promise<void>; caretakerSignedOut(): void; setCaretakerPin(pin: string): Promise<void>; finishSetup(): Promise<void>;
   createProfile(alias: string, pin: string, openAfter?: boolean): Promise<void>;
   openCaretaker(pin: string): Promise<void>; closeCaretaker(): void;
+  /** Forgot-PIN: throws unless the Clerk account is the one saved at Setup; always signs out. */
+  confirmCaretakerAccount(userId: string, signOut: () => Promise<void>): Promise<void>;
+  resetCaretakerPin(pin: string): Promise<void>;
   deleteProfile(id: string): Promise<void>; resetProfilePin(id: string, pin: string): Promise<void>;
   /** Read-only look at one Profile's data, for the Caretaker. */
   viewProfile(id: string): Promise<{ attempts: Attempt[]; purchases: Purchase[] }>;
@@ -144,6 +147,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // Set the ref now: the Caretaker screens mount in the next commit and read it before the sync effect runs.
     lastInteraction.current = Date.now(); caretakerRef.current = true; setCaretaker(true);
   };
+  const confirmCaretakerAccount = async (userId: string, signOut: () => Promise<void>) => confirmCaretaker(userId, await vault.get(CARETAKER_ID), signOut);
+  // Only the PIN verifier and its wait change; Profiles, Attempts and Purchases are not touched.
+  const resetCaretakerPin = async (pin: string) => {
+    if (!isValidPin(pin)) throw new Error('Choose a 6-digit PIN.');
+    await vault.set(CARETAKER_PIN, await pinDigest(CARETAKER_OWNER, pin)); await vault.remove(lockoutKey(CARETAKER_OWNER));
+  };
   const closeCaretaker = () => { caretakerRef.current = false; setCaretaker(false); };
   const requireCaretaker = () => { if (!caretakerRef.current) throw new Error('Enter the Caretaker PIN first.'); };
   const deleteProfile = async (id: string) => {
@@ -187,7 +196,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
   const updatePreferences = async (change: Partial<Preferences>) => { const next = { ...preferences, ...change }; await vault.set('kgo-preferences', JSON.stringify(next)); setPreferences(next); };
-  return <AppContext.Provider value={{ ready, profiles, profile, locked, caretaker, attempts, learning, purchases, balance, notice, preferences, toast, dismiss: () => setNotice(null), step: setupStep(saved), saveCaretakerId, caretakerSignedOut, setCaretakerPin, finishSetup, createProfile, openCaretaker, closeCaretaker, deleteProfile, resetProfilePin, viewProfile, selectProfile, lock, unlock, answer, buyBadge, updatePreferences }}>
+  return <AppContext.Provider value={{ ready, profiles, profile, locked, caretaker, attempts, learning, purchases, balance, notice, preferences, toast, dismiss: () => setNotice(null), step: setupStep(saved), saveCaretakerId, caretakerSignedOut, setCaretakerPin, finishSetup, createProfile, openCaretaker, closeCaretaker, confirmCaretakerAccount, resetCaretakerPin, deleteProfile, resetProfilePin, viewProfile, selectProfile, lock, unlock, answer, buyBadge, updatePreferences }}>
     <InteractionBoundary onTouch={() => { lastInteraction.current = Date.now(); }}>{children}</InteractionBoundary>
   </AppContext.Provider>;
 }

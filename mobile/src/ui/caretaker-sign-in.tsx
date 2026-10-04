@@ -1,35 +1,37 @@
 import { useState } from 'react';
 import { ClerkProvider, useClerk, useSignIn } from '@clerk/expo';
 
-import { keepCaretaker } from '../domain/setup';
-import { useApp } from '@/state/app-context';
+import { signInMessage } from '../domain/setup';
 import { Action, Field, T } from '@/ui/primitives';
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
 /**
- * Email-code sign-in for the Caretaker Account. Loaded only by the Setup screen,
- * so Clerk is never imported or mounted at app start.
+ * Email-code sign-in for the Caretaker Account. Loaded only by Setup and the
+ * forgot-PIN flow, so Clerk is never imported or mounted at app start.
+ * `onSignedIn` gets the Clerk user ID and a sign-out it must call before finishing.
  */
-export default function CaretakerSignIn() {
+export type OnSignedIn = (userId: string, signOut: () => Promise<void>) => Promise<void>;
+export default function CaretakerSignIn({ onSignedIn }: { onSignedIn: OnSignedIn }) {
   if (!publishableKey) return <T size={12}>Setup needs EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY. See mobile/.env.example.</T>;
   // No token cache: the session is never persisted, and we sign out right away.
-  return <ClerkProvider publishableKey={publishableKey}><EmailCode /></ClerkProvider>;
+  return <ClerkProvider publishableKey={publishableKey}><EmailCode onSignedIn={onSignedIn} /></ClerkProvider>;
 }
 
-const check = ({ error }: { error: { message: string } | null }) => { if (error) throw new Error(error.message); };
+const check = ({ error }: { error: { message: string } | null }) => { if (error) throw new Error(signInMessage(error.message)); };
 
-function EmailCode() {
+function EmailCode({ onSignedIn }: { onSignedIn: OnSignedIn }) {
   const { signIn } = useSignIn();
   const clerk = useClerk();
-  const { saveCaretakerId, caretakerSignedOut } = useApp();
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [sent, setSent] = useState(false);
 
   const send = async () => {
-    check(await signIn.create({ identifier: email.trim() }));
-    check(await signIn.emailCode.sendCode());
+    try {
+      check(await signIn.create({ identifier: email.trim() }));
+      check(await signIn.emailCode.sendCode());
+    } catch (e) { throw new Error(signInMessage(e instanceof Error ? e.message : String(e))); }
     setSent(true);
   };
   const verify = async () => {
@@ -37,8 +39,7 @@ function EmailCode() {
     check(await signIn.finalize());
     const id = clerk.user?.id;
     if (!id) { await clerk.signOut(); throw new Error('Sign-in did not finish. Try again.'); }
-    await keepCaretaker(id, saveCaretakerId, () => clerk.signOut());
-    caretakerSignedOut(); // only now does Setup leave this step and unmount Clerk
+    await onSignedIn(id, () => clerk.signOut());
   };
 
   return sent ? (
