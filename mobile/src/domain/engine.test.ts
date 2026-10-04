@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SKILL_PARAMETERS, starterPacks } from '../content/starter-pack';
-import { COINS_PER_CORRECT, MASTERED_AT, grade, learningState, updateMastery, type Attempt } from './engine';
+import { COINS_PER_CORRECT, MASTERED_AT, PLATEAU_ATTEMPTS, PLATEAU_BELOW, grade, growth, learningState, updateMastery, type Attempt } from './engine';
 
 const NOW = '2026-01-01T00:00:00.000Z';
 const P = DEFAULT_SKILL_PARAMETERS;
@@ -85,5 +85,58 @@ describe('Coins and grading', () => {
   it('rejects unknown Exercises and out-of-range options', () => {
     expect(() => grade(starterPacks, [], { id: 'n', exerciseId: 'nope', selectedOption: 0 }, NOW)).toThrow();
     expect(() => grade(starterPacks, [], { id: 'n', exerciseId: exs[0].id, selectedOption: 99 }, NOW)).toThrow();
+  });
+});
+
+describe('Growth', () => {
+  // Local dates, because months follow the tablet's clock.
+  const day = (m: number, d: number, h = 12) => new Date(2026, m, d, h).toISOString();
+  const on = (i: number, right: boolean, when: string): Attempt => ({ ...answer(i, right), id: `g${i}${when}`, at: when });
+  const NOWD = new Date(2026, 5, 15, 12); // 15 June
+  const g = (log: Attempt[]) => growth(starterPacks, log, NOWD);
+
+  it('is zero with no Attempts', () => expect(g([])).toEqual({ thisMonth: { up: 0, mastered: 0 }, lastMonth: { up: 0, mastered: 0 } }));
+  it('counts a Skill that went up this month and last month separately', () => {
+    const log = [on(0, true, day(4, 10)), on(1, true, day(5, 3))];
+    expect(g(log).lastMonth.up).toBe(1);
+    expect(g(log).thisMonth.up).toBe(1);
+  });
+  it('counts a Skill that became Mastered this month, not one already Mastered at the start', () => {
+    const log = [0, 1, 2].map((i) => on(i, true, day(5, 2 + i)));
+    expect(g(log).thisMonth).toEqual({ up: 1, mastered: 1 });
+    const earlier = [...[0, 1, 2].map((i) => on(i, true, day(4, 2 + i))), on(3, true, day(5, 2))];
+    expect(g(earlier).thisMonth.mastered).toBe(0);
+    expect(g(earlier).lastMonth.mastered).toBe(1);
+  });
+  it('does not count a Skill whose Mastery fell, and is never negative', () => {
+    const log = [on(0, true, day(4, 5)), on(1, false, day(5, 1)), on(2, false, day(5, 2))];
+    expect(g(log).thisMonth).toEqual({ up: 0, mastered: 0 });
+  });
+  it('respects month boundaries in local time', () => {
+    const lastInstant = new Date(2026, 4, 31, 23, 59, 59).toISOString();
+    const firstInstant = new Date(2026, 5, 1, 0, 0, 0).toISOString();
+    expect(g([on(0, true, lastInstant)])).toMatchObject({ lastMonth: { up: 1 }, thisMonth: { up: 0 } });
+    expect(g([on(0, true, firstInstant)])).toMatchObject({ lastMonth: { up: 0 }, thisMonth: { up: 1 } });
+  });
+  it('handles January looking back to December', () => {
+    const log = [on(0, true, new Date(2025, 11, 20).toISOString())];
+    expect(growth(starterPacks, log, new Date(2026, 0, 5)).lastMonth.up).toBe(1);
+  });
+});
+
+describe('Plateau Flag', () => {
+  const flag = (n: number, right = false) => learningState(starterPacks, Array.from({ length: n }, (_, i) => answer(i, right))).skills.find((s) => s.skillId === skill)!;
+  it('is raised at the fifth Counted Attempt with Mastery below 0.40, not the fourth', () => {
+    expect(PLATEAU_ATTEMPTS).toBe(5);
+    expect(PLATEAU_BELOW).toBe(0.4);
+    expect(flag(4).mastery).toBeLessThan(0.4);
+    expect([flag(4).plateau, flag(5).plateau]).toEqual([false, true]);
+  });
+  it('is not raised when Mastery is 0.40 or more', () => {
+    expect(flag(5, true).plateau).toBe(false);
+  });
+  it('counts only Counted Attempts', () => {
+    const log = [0, 1, 2, 3].flatMap((i) => [answer(i, false, i * 2), answer(i, false, i * 2 + 1)]);
+    expect(learningState(starterPacks, log).skills.find((s) => s.skillId === skill)!.plateau).toBe(false);
   });
 });
