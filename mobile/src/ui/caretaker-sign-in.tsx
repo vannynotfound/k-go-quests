@@ -18,7 +18,8 @@ export default function CaretakerSignIn({ onSignedIn }: { onSignedIn: OnSignedIn
   return <ClerkProvider publishableKey={publishableKey}><EmailCode onSignedIn={onSignedIn} /></ClerkProvider>;
 }
 
-const check = ({ error }: { error: { message: string } | null }) => { if (error) throw new Error(signInMessage(error.message)); };
+const friendly = (e: unknown) => new Error(signInMessage(e instanceof Error ? e.message : String(e)));
+const check = ({ error }: { error: { message: string } | null }) => { if (error) throw new Error(error.message); };
 
 function EmailCode({ onSignedIn }: { onSignedIn: OnSignedIn }) {
   const { signIn } = useSignIn();
@@ -31,15 +32,23 @@ function EmailCode({ onSignedIn }: { onSignedIn: OnSignedIn }) {
     try {
       check(await signIn.create({ identifier: email.trim() }));
       check(await signIn.emailCode.sendCode());
-    } catch (e) { throw new Error(signInMessage(e instanceof Error ? e.message : String(e))); }
+    } catch (e) { throw friendly(e); }
     setSent(true);
   };
   const verify = async () => {
-    check(await signIn.emailCode.verifyCode({ code: code.trim() }));
-    check(await signIn.finalize());
-    const id = clerk.user?.id;
-    if (!id) { await clerk.signOut(); throw new Error('Sign-in did not finish. Try again.'); }
-    await onSignedIn(id, () => clerk.signOut());
+    try {
+      check(await signIn.emailCode.verifyCode({ code: code.trim() }));
+      check(await signIn.finalize());
+    } catch (e) { throw friendly(e); }
+    try {
+      const id = clerk.user?.id;
+      if (!id) { await clerk.signOut(); throw new Error('Sign-in did not finish. Try again.'); }
+      await onSignedIn(id, () => clerk.signOut());
+    } catch (e) {
+      // The session is already ended; start over so the Caretaker can retry without going Back.
+      setSent(false); setCode('');
+      throw friendly(e);
+    }
   };
 
   return sent ? (
