@@ -138,9 +138,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const active = profileRef.current;
     if (!active || lockedRef.current) throw new Error('Unlock your profile to use the Shop.');
     const purchase = buy(learningState(starterPacks, attemptsRef.current).coins, purchasesRef.current, cosmeticId, new Date().toISOString());
-    await (await getRepository()).recordPurchase(active.id, purchase);
-    const next = [...purchasesRef.current, purchase];
-    purchasesRef.current = next; setPurchases(next);
+    // Claim the ref before the await so a second tap sees the spend; roll back if the save fails.
+    const before = purchasesRef.current;
+    purchasesRef.current = [...before, purchase]; setPurchases(purchasesRef.current);
+    try { await (await getRepository()).recordPurchase(active.id, purchase); }
+    catch (error) {
+      if (profileRef.current?.id === active.id && purchasesRef.current.includes(purchase)) { purchasesRef.current = before; setPurchases(before); }
+      throw error;
+    }
   };
   const updatePreferences = async (change: Partial<Preferences>) => { const next = { ...preferences, ...change }; await vault.set('kgo-preferences', JSON.stringify(next)); setPreferences(next); };
   return <AppContext.Provider value={{ ready, profiles, profile, locked, attempts, learning, purchases, balance, notice, preferences, toast, dismiss: () => setNotice(null), step: setupStep(saved), saveCaretakerId, caretakerSignedOut, setCaretakerPin, finishSetup, createProfile, selectProfile, lock, unlock, answer, buyBadge, updatePreferences }}>
