@@ -15,12 +15,16 @@ export type Appearance = 'light' | 'dark' | 'system';
 interface Preferences { appearance: Appearance; language: string; }
 interface Notice { message: string; kind: 'success' | 'error' | 'info'; }
 interface AppContextValue {
-  ready: boolean; profiles: Profile[]; profile: Profile | null; locked: boolean;
+  ready: boolean; profiles: Profile[]; profile: Profile | null; locked: boolean; caretaker: boolean;
   attempts: Attempt[]; learning: LearningState; purchases: Purchase[]; balance: number;
   notice: Notice | null; preferences: Preferences;
   toast(message: string, kind?: Notice['kind']): void; dismiss(): void;
   step: SetupStep; saveCaretakerId(id: string): Promise<void>; caretakerSignedOut(): void; setCaretakerPin(pin: string): Promise<void>; finishSetup(): Promise<void>;
   createProfile(alias: string, pin: string, openAfter?: boolean): Promise<void>;
+  openCaretaker(pin: string): Promise<void>; closeCaretaker(): void;
+  deleteProfile(id: string): Promise<void>; resetProfilePin(id: string, pin: string): Promise<void>;
+  /** Read-only look at one Profile's data, for the Caretaker. */
+  viewProfile(id: string): Promise<{ attempts: Attempt[]; purchases: Purchase[] }>;
   selectProfile(id: string | null): void; lock(): void; unlock(pin: string): Promise<void>;
   answer(exerciseId: string, selectedOption: number): Promise<Grade>;
   buyBadge(cosmeticId: string): Promise<void>;
@@ -35,12 +39,14 @@ const SETUP_DONE = 'kgo-setup-done';
 // Same verifier as Profile PINs, keyed by a fixed owner instead of a Profile ID.
 const CARETAKER_OWNER = 'caretaker';
 const lockoutKey = (id: string) => `kgo-lockout-${id}`;
+const WAIT_MESSAGE = 'Too many PIN attempts. Try again in a few minutes.';
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [locked, setLocked] = useState(true);
+  const [caretaker, setCaretaker] = useState(false);
   const [attempts, setAttempts] = useState<Attempt[]>([]);
   const learning = useMemo(() => learningState(starterPacks, attempts), [attempts]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
@@ -49,11 +55,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [saved, setSaved] = useState({ hasCaretaker: false, pinSet: false, done: false });
   const [notice, setNotice] = useState<Notice | null>(null);
   const profileRef = useRef(profile); const attemptsRef = useRef(attempts); const purchasesRef = useRef(purchases);
-  const lockedRef = useRef(locked); const lastInteraction = useRef(0);
+  const lockedRef = useRef(locked); const caretakerRef = useRef(caretaker); const lastInteraction = useRef(0);
 
   const toast = useCallback((message: string, kind: Notice['kind'] = 'info') => setNotice({ message, kind }), []);
   // Refs mirror committed state so async handlers read fresh values; set after every commit, never during render.
-  useEffect(() => { profileRef.current = profile; attemptsRef.current = attempts; purchasesRef.current = purchases; lockedRef.current = locked; });
+  useEffect(() => { profileRef.current = profile; attemptsRef.current = attempts; purchasesRef.current = purchases; lockedRef.current = locked; caretakerRef.current = caretaker; });
 
   const forget = () => { attemptsRef.current = []; setAttempts([]); purchasesRef.current = []; setPurchases([]); };
   const lock = useCallback(() => { lockedRef.current = true; setLocked(true); }, []);
@@ -75,10 +81,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     lastInteraction.current = Date.now();
     const listener = AppState.addEventListener('change', (state) => {
-      if (state !== 'active' && profileRef.current) lock();
+      if (state !== 'active') { if (profileRef.current) lock(); setCaretaker(false); }
       if (state === 'active') lastInteraction.current = Date.now();
     });
-    const timer = setInterval(() => { if (profileRef.current && isIdle(lastInteraction.current, Date.now())) lock(); }, 15000);
+    const timer = setInterval(() => {
+      if (!isIdle(lastInteraction.current, Date.now())) return;
+      if (profileRef.current) lock();
+      if (caretakerRef.current) setCaretaker(false);
+    }, 15000);
     return () => { listener.remove(); clearInterval(timer); };
   }, [lock]);
 
@@ -113,17 +123,45 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const next = profiles.find((p) => p.id === id) ?? null;
     profileRef.current = next; setProfile(next); lock(); forget();
   };
+  /** Checks a PIN against its stored verifier, with the shared 5-failure wait. */
+  const checkPin = async (owner: string, verifierKey: string, pin: string, mismatch: string) => {
+    const lockout = JSON.parse(await vault.get(lockoutKey(owner)) ?? '{"failed":0,"until":0}') as Lockout;
+    if (lockedOut(lockout, Date.now())) throw new Error(WAIT_MESSAGE);
+    const verifier = await vault.get(verifierKey);
+    if (!verifier || verifier !== await pinDigest(owner, pin)) {
+      await vault.set(lockoutKey(owner), JSON.stringify(recordFailure(lockout, Date.now())));
+      throw new Error(mismatch);
+    }
+    await vault.remove(lockoutKey(owner));
+  };
   const unlock = async (pin: string) => {
     const active = profileRef.current; if (!active) throw new Error('Choose a profile first.');
-    const lockout = JSON.parse(await vault.get(lockoutKey(active.id)) ?? '{"failed":0,"until":0}') as Lockout;
-    if (lockedOut(lockout, Date.now())) throw new Error('Too many PIN attempts. Try again in a few minutes.');
-    const verifier = await vault.get(pinKey(active.id));
-    if (!verifier || verifier !== await pinDigest(active.id, pin)) {
-      await vault.set(lockoutKey(active.id), JSON.stringify(recordFailure(lockout, Date.now())));
-      throw new Error('That PIN does not match this profile.');
-    }
-    await vault.remove(lockoutKey(active.id));
+    await checkPin(active.id, pinKey(active.id), pin, 'That PIN does not match this profile.');
     await open(active);
+  };
+  const openCaretaker = async (pin: string) => {
+    await checkPin(CARETAKER_OWNER, CARETAKER_PIN, pin, 'That PIN does not match the Caretaker PIN.');
+    lastInteraction.current = Date.now(); setCaretaker(true);
+  };
+  const closeCaretaker = () => setCaretaker(false);
+  const requireCaretaker = () => { if (!caretakerRef.current) throw new Error('Enter the Caretaker PIN first.'); };
+  const deleteProfile = async (id: string) => {
+    requireCaretaker();
+    await (await getRepository()).deleteOwner(id);
+    await Promise.all([vault.remove(pinKey(id)), vault.remove(lockoutKey(id)), vault.remove(`kgo-key-${id}`)]);
+    const all = profiles.filter((p) => p.id !== id);
+    await vault.set('kgo-profiles', JSON.stringify(all)); setProfiles(all);
+  };
+  const resetProfilePin = async (id: string, pin: string) => {
+    requireCaretaker();
+    if (!isValidPin(pin)) throw new Error('Choose a 6-digit PIN.');
+    await vault.set(pinKey(id), await pinDigest(id, pin)); await vault.remove(lockoutKey(id));
+  };
+  const viewProfile = async (id: string) => {
+    requireCaretaker();
+    const repo = await getRepository();
+    const [attempts, purchases] = await Promise.all([repo.attempts(id), repo.purchases(id)]);
+    return { attempts, purchases };
   };
   const answer = async (exerciseId: string, selectedOption: number) => {
     const active = profileRef.current;
@@ -148,7 +186,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
   const updatePreferences = async (change: Partial<Preferences>) => { const next = { ...preferences, ...change }; await vault.set('kgo-preferences', JSON.stringify(next)); setPreferences(next); };
-  return <AppContext.Provider value={{ ready, profiles, profile, locked, attempts, learning, purchases, balance, notice, preferences, toast, dismiss: () => setNotice(null), step: setupStep(saved), saveCaretakerId, caretakerSignedOut, setCaretakerPin, finishSetup, createProfile, selectProfile, lock, unlock, answer, buyBadge, updatePreferences }}>
+  return <AppContext.Provider value={{ ready, profiles, profile, locked, caretaker, attempts, learning, purchases, balance, notice, preferences, toast, dismiss: () => setNotice(null), step: setupStep(saved), saveCaretakerId, caretakerSignedOut, setCaretakerPin, finishSetup, createProfile, openCaretaker, closeCaretaker, deleteProfile, resetProfilePin, viewProfile, selectProfile, lock, unlock, answer, buyBadge, updatePreferences }}>
     <InteractionBoundary onTouch={() => { lastInteraction.current = Date.now(); }}>{children}</InteractionBoundary>
   </AppContext.Provider>;
 }

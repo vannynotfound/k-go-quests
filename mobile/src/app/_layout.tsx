@@ -29,7 +29,7 @@ export default function RootLayout() {
 }
 
 function Shell() {
-  const { ready, profile, locked, step } = useApp();
+  const { ready, profile, locked, caretaker, step } = useApp();
   const setUp = step === 'done';
   const theme = useTheme();
   useEffect(() => { void SystemUI.setBackgroundColorAsync(theme.page).catch(() => undefined); }, [theme.page]);
@@ -48,9 +48,13 @@ function Shell() {
         <Stack.Protected guard={!setUp}>
           <Stack.Screen name="setup" />
         </Stack.Protected>
-        <Stack.Protected guard={setUp && !profile}>
+        <Stack.Protected guard={setUp && !profile && !caretaker}>
           <Stack.Screen name="index" />
-          <Stack.Screen name="add-profile" />
+          <Stack.Screen name="caretaker-pin" />
+        </Stack.Protected>
+        <Stack.Protected guard={setUp && !profile && caretaker}>
+          <Stack.Screen name="caretaker" />
+          <Stack.Screen name="caretaker-profile" />
         </Stack.Protected>
         <Stack.Protected guard={setUp && Boolean(profile) && locked}>
           <Stack.Screen name="lock" />

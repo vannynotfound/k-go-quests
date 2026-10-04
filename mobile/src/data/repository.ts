@@ -23,6 +23,7 @@ export interface Repository {
   record(owner: string, attempt: Attempt): Promise<void>;
   purchases(owner: string): Promise<Purchase[]>;
   recordPurchase(owner: string, purchase: Purchase): Promise<void>;
+  deleteOwner(owner: string): Promise<void>;
 }
 export class LocalRepository implements Repository {
   constructor(private db: Database, private cipher: Cipher) {}
@@ -50,5 +51,10 @@ export class LocalRepository implements Repository {
   async recordPurchase(owner: string, purchase: Purchase) {
     const cipher = await this.cipher.encrypt(owner, purchase.cosmeticId, purchase);
     await this.db.run('INSERT INTO purchases VALUES (?, ?, ?, ?)', [owner, purchase.cosmeticId, Date.now(), cipher]);
+  }
+  /** Only the Caretaker deleting a Profile removes rows. */
+  async deleteOwner(owner: string) {
+    await this.db.run('DELETE FROM attempts WHERE owner = ?', [owner]);
+    await this.db.run('DELETE FROM purchases WHERE owner = ?', [owner]);
   }
 }
