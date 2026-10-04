@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SKILL_PARAMETERS, starterPacks } from '../content/starter-pack';
+import { DEFAULT_SKILL_PARAMETERS, starterPacks as fittedPacks } from '../content/starter-pack';
 import { COINS_PER_CORRECT, MASTERED_AT, PLATEAU_ATTEMPTS, PLATEAU_BELOW, demoHistory, grade, growth, learningState, quests, updateMastery, type Attempt } from './engine';
 
 const NOW = '2026-01-01T00:00:00.000Z';
 const P = DEFAULT_SKILL_PARAMETERS;
+// Pin the textbook numbers so these tests check the arithmetic, not the fitted values.
+const starterPacks = fittedPacks.map((p) => ({ ...p, skills: p.skills.map((s) => ({ ...s, parameters: P })) }));
 const skill = 'math5.fractions.equivalent';
 const exs = starterPacks.flatMap((p) => p.lessons).filter((l) => l.skillCode === skill).flatMap((l) => l.exercises);
 const at = (n: number) => new Date(Date.parse(NOW) + n * 1000).toISOString();

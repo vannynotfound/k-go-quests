@@ -1,3 +1,4 @@
+import { FITTED_SKILL_PARAMETERS } from './fitted-parameters';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SKILL_PARAMETERS, starterPacks } from './starter-pack';
 
@@ -35,7 +36,8 @@ describe('Starter Pack', () => {
   it('gives every Skill a pack-prefixed ID and parameters', () => {
     for (const p of starterPacks) for (const s of p.skills) {
       expect(s.id.startsWith(`${p.id}.`), s.id).toBe(true);
-      expect(s.parameters).toEqual(DEFAULT_SKILL_PARAMETERS);
+      expect(s.parameters).toEqual(FITTED_SKILL_PARAMETERS[s.id] ?? DEFAULT_SKILL_PARAMETERS);
+      expect(Object.keys(FITTED_SKILL_PARAMETERS)).toContain(s.id);
     }
   });
 
