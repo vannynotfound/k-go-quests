@@ -46,7 +46,8 @@ export default function ModuleScreen() {
 
   const { pack, lesson } = found;
   const answered = new Set(attempts.map((a) => a.exerciseId));
-  const unanswered = lesson.exercises.filter((item) => !answered.has(item.id));
+  // A Quest opens on its own Exercise, then the rest of the Lesson follows.
+  const unanswered = lesson.exercises.filter((item) => !answered.has(item.id)).sort((a, b) => Number(b.id === exerciseId) - Number(a.id === exerciseId));
   const exercise = playlist ? playlist[index] : unanswered[0];
 
   return (
