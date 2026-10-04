@@ -112,10 +112,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const finishSetup = async () => {
     if (!profiles.length) throw new Error('Create at least one profile first.');
     // The Demo Learner has no PIN until the Caretaker sets one (Reset PIN), so nobody can open it before then.
-    const demo = { id: randomUUID(), alias: 'Demo Learner' };
-    await seedDemo(demo.id);
-    const all = [...profiles, demo];
-    await vault.set(DEMO_ID, demo.id); await vault.set('kgo-profiles', JSON.stringify(all)); setProfiles(all); setDemoId(demo.id);
+    // Reuse the saved Demo Learner on a retry, so a half-finished Setup never leaves a second one.
+    const id = await vault.get(DEMO_ID) ?? randomUUID();
+    await vault.set(DEMO_ID, id); await seedDemo(id);
+    const all = profiles.some((p) => p.id === id) ? profiles : [...profiles, { id, alias: 'Demo Learner' }];
+    await vault.set('kgo-profiles', JSON.stringify(all)); setProfiles(all); setDemoId(id);
     await vault.set(SETUP_DONE, '1'); setSaved((s) => ({ ...s, done: true }));
   };
   const seedDemo = async (id: string) => {
