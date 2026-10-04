@@ -42,19 +42,20 @@ export default function Caretaker() {
 function ProfileCard({ id, alias, onOpen, onDelete }: { id: string; alias: string; onOpen: () => void; onDelete: () => void }) {
   const { viewProfile, resetProfilePin, toast } = useApp();
   const theme = useTheme();
-  const [flags, setFlags] = useState<string[] | null>(null);
+  const [flags, setFlags] = useState<string[] | 'error' | null>(null);
   const [resetting, setResetting] = useState(false);
   // ponytail: one read per card; fine for the handful of Profiles on one tablet.
   useEffect(() => {
     void viewProfile(id)
       .then(({ attempts }) => setFlags(learningState(starterPacks, attempts).skills.filter((s) => s.plateau).map((s) => lessonTitle(s.skillId))))
-      .catch(() => setFlags([]));
+      .catch(() => setFlags('error'));
   }, [id, viewProfile]);
   return (
     <Card onPress={onOpen} style={{ gap: 8 }}>
       <T variant="titleS">{alias}</T>
       <Row style={{ flexWrap: 'wrap', gap: 6 }}>
         {flags === null ? <T size={12} color={theme.muted}>Loading...</T>
+          : flags === 'error' ? <T size={12} color={tokens.state.critical}>Could not load Plateau Flags</T>
           : flags.length ? flags.map((f) => <Pill key={f} color={tokens.state.critical} tint={tokens.tint.warning}>{`Plateau Flag: ${f}`}</Pill>)
           : <T size={12} color={theme.muted}>No Plateau Flags</T>}
       </Row>

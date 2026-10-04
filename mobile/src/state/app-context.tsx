@@ -39,7 +39,7 @@ const SETUP_DONE = 'kgo-setup-done';
 // Same verifier as Profile PINs, keyed by a fixed owner instead of a Profile ID.
 const CARETAKER_OWNER = 'caretaker';
 const lockoutKey = (id: string) => `kgo-lockout-${id}`;
-const WAIT_MESSAGE = 'Too many PIN attempts. Try again in a few minutes.';
+const WAIT_MESSAGE = 'Too many wrong PINs. Wait 5 minutes, then try again.';
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
@@ -141,9 +141,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
   const openCaretaker = async (pin: string) => {
     await checkPin(CARETAKER_OWNER, CARETAKER_PIN, pin, 'That PIN does not match the Caretaker PIN.');
-    lastInteraction.current = Date.now(); setCaretaker(true);
+    // Set the ref now: the Caretaker screens mount in the next commit and read it before the sync effect runs.
+    lastInteraction.current = Date.now(); caretakerRef.current = true; setCaretaker(true);
   };
-  const closeCaretaker = () => setCaretaker(false);
+  const closeCaretaker = () => { caretakerRef.current = false; setCaretaker(false); };
   const requireCaretaker = () => { if (!caretakerRef.current) throw new Error('Enter the Caretaker PIN first.'); };
   const deleteProfile = async (id: string) => {
     requireCaretaker();
