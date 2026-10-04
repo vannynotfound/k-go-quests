@@ -47,12 +47,12 @@ export class LocalRepository implements Repository {
     const opened = await Promise.all(rows.map((r) => this.cipher.decrypt<Purchase>(owner, r.cosmetic_id, r.cipher).catch(() => null)));
     return opened.filter((p): p is Purchase => p !== null);
   }
-  /** The primary key makes a second purchase of the same Cosmetic fail, and nothing ever updates or deletes a row. */
+  /** The primary key makes a second purchase of the same Cosmetic fail; only deleteOwner removes rows. */
   async recordPurchase(owner: string, purchase: Purchase) {
     const cipher = await this.cipher.encrypt(owner, purchase.cosmeticId, purchase);
     await this.db.run('INSERT INTO purchases VALUES (?, ?, ?, ?)', [owner, purchase.cosmeticId, Date.now(), cipher]);
   }
-  /** Only the Caretaker deleting a Profile removes rows. */
+  /** Removes a Profile's rows: the Caretaker deleting a Profile, or resetting the Demo Learner. */
   async deleteOwner(owner: string) {
     await this.db.run('DELETE FROM attempts WHERE owner = ?', [owner]);
     await this.db.run('DELETE FROM purchases WHERE owner = ?', [owner]);
