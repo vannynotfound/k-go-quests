@@ -40,16 +40,17 @@ export default function Caretaker() {
 }
 
 function ProfileCard({ id, alias, onOpen, onDelete }: { id: string; alias: string; onOpen: () => void; onDelete: () => void }) {
-  const { viewProfile, resetProfilePin, toast } = useApp();
+  const { viewProfile, resetProfilePin, demoId, resetDemo, toast } = useApp();
   const theme = useTheme();
   const [flags, setFlags] = useState<string[] | 'error' | null>(null);
   const [resetting, setResetting] = useState(false);
+  const [history, setHistory] = useState(0);
   // ponytail: one read per card; fine for the handful of Profiles on one tablet.
   useEffect(() => {
     void viewProfile(id)
       .then(({ attempts }) => setFlags(learningState(starterPacks, attempts).skills.filter((s) => s.plateau).map((s) => lessonTitle(s.skillId))))
       .catch(() => setFlags('error'));
-  }, [id, viewProfile]);
+  }, [id, viewProfile, history]);
   return (
     <Card onPress={onOpen} style={{ gap: 8 }}>
       <T variant="titleS">{alias}</T>
@@ -63,6 +64,7 @@ function ProfileCard({ id, alias, onOpen, onDelete }: { id: string; alias: strin
         <Button title="Reset PIN" variant="outline" onPress={() => setResetting(true)} style={{ flex: 1 }} />
         <Button title="Delete" variant="danger" onPress={onDelete} style={{ flex: 1 }} />
       </Row>
+      {id === demoId ? <Action title="Reset demo" variant="outline" task={async () => { await resetDemo(); setHistory((n) => n + 1); toast('Demo Learner history restored.', 'success'); }} /> : null}
       <Sheet visible={resetting} title={`New PIN for ${alias}`} onClose={() => setResetting(false)}>
         <ResetPinForm onReset={async (pin) => { await resetProfilePin(id, pin); setResetting(false); toast(`PIN changed for ${alias}.`, 'success'); }} />
       </Sheet>

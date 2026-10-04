@@ -3,7 +3,7 @@ import { AppState, View } from 'react-native';
 import { randomUUID } from 'expo-crypto';
 import type { Profile } from '../domain/types';
 import { starterPacks } from '../content/starter-pack';
-import { grade, learningState, type Attempt, type Grade, type LearningState } from '../domain/engine';
+import { demoHistory, grade, learningState, type Attempt, type Grade, type LearningState } from '../domain/engine';
 import { balance as coinBalance, buy, type Purchase } from '../domain/shop';
 import { setupStep, type SetupStep } from '../domain/setup';
 import { isIdle, isValidPin, lockedOut, recordFailure, type Lockout } from '../domain/pin-lock';
@@ -22,6 +22,8 @@ interface AppContextValue {
   step: SetupStep; saveCaretakerId(id: string): Promise<void>; caretakerSignedOut(): void; setCaretakerPin(pin: string): Promise<void>; finishSetup(): Promise<void>;
   createProfile(alias: string, pin: string, openAfter?: boolean): Promise<void>;
   openCaretaker(pin: string): Promise<void>; closeCaretaker(): void;
+  /** The Demo Learner's Profile ID, once Setup has made it. */
+  demoId: string | null; resetDemo(): Promise<void>;
   deleteProfile(id: string): Promise<void>; resetProfilePin(id: string, pin: string): Promise<void>;
   /** Read-only look at one Profile's data, for the Caretaker. */
   viewProfile(id: string): Promise<{ attempts: Attempt[]; purchases: Purchase[] }>;
@@ -36,6 +38,7 @@ const pinKey = (id: string) => `kgo-pin-${id}`;
 const CARETAKER_ID = 'kgo-caretaker-id';
 const CARETAKER_PIN = 'kgo-caretaker-pin';
 const SETUP_DONE = 'kgo-setup-done';
+const DEMO_ID = 'kgo-demo-id';
 // Same verifier as Profile PINs, keyed by a fixed owner instead of a Profile ID.
 const CARETAKER_OWNER = 'caretaker';
 const lockoutKey = (id: string) => `kgo-lockout-${id}`;
@@ -54,6 +57,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [preferences, setPreferences] = useState<Preferences>(defaults);
   const [saved, setSaved] = useState({ hasCaretaker: false, pinSet: false, done: false });
   const [notice, setNotice] = useState<Notice | null>(null);
+  const [demoId, setDemoId] = useState<string | null>(null);
   const profileRef = useRef(profile); const attemptsRef = useRef(attempts); const purchasesRef = useRef(purchases);
   const lockedRef = useRef(locked); const caretakerRef = useRef(caretaker); const lastInteraction = useRef(0);
 
@@ -71,8 +75,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { void (async () => {
     try {
-      const [labels, prefs, id, pin, done] = await Promise.all([vault.get('kgo-profiles'), vault.get('kgo-preferences'), vault.get(CARETAKER_ID), vault.get(CARETAKER_PIN), vault.get(SETUP_DONE)]);
-      setSaved({ hasCaretaker: Boolean(id), pinSet: Boolean(pin), done: Boolean(done) });
+      const [labels, prefs, id, pin, done, demo] = await Promise.all([vault.get('kgo-profiles'), vault.get('kgo-preferences'), vault.get(CARETAKER_ID), vault.get(CARETAKER_PIN), vault.get(SETUP_DONE), vault.get(DEMO_ID)]);
+      setSaved({ hasCaretaker: Boolean(id), pinSet: Boolean(pin), done: Boolean(done) }); setDemoId(demo);
       if (labels) setProfiles(JSON.parse(labels)); if (prefs) setPreferences({ ...defaults, ...JSON.parse(prefs) });
     } catch { toast('Profiles on this tablet could not be restored.', 'error'); }
     finally { setReady(true); }
@@ -107,7 +111,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
   const finishSetup = async () => {
     if (!profiles.length) throw new Error('Create at least one profile first.');
+    // The Demo Learner has no PIN until the Caretaker sets one (Reset PIN), so nobody can open it before then.
+    // Reuse the saved Demo Learner on a retry, so a half-finished Setup never leaves a second one.
+    const id = await vault.get(DEMO_ID) ?? randomUUID();
+    await vault.set(DEMO_ID, id); await seedDemo(id);
+    const all = profiles.some((p) => p.id === id) ? profiles : [...profiles, { id, alias: 'Demo Learner' }];
+    await vault.set('kgo-profiles', JSON.stringify(all)); setProfiles(all); setDemoId(id);
     await vault.set(SETUP_DONE, '1'); setSaved((s) => ({ ...s, done: true }));
+  };
+  const seedDemo = async (id: string) => {
+    const repo = await getRepository();
+    await repo.deleteOwner(id);
+    for (const a of demoHistory(starterPacks, new Date())) await repo.record(id, a);
+  };
+  const resetDemo = async () => {
+    requireCaretaker();
+    if (!demoId) throw new Error('There is no Demo Learner on this tablet.');
+    await seedDemo(demoId);
   };
   const createProfile = async (alias: string, pin: string, openAfter = true) => {
     const name = alias.trim();
@@ -187,7 +207,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
   const updatePreferences = async (change: Partial<Preferences>) => { const next = { ...preferences, ...change }; await vault.set('kgo-preferences', JSON.stringify(next)); setPreferences(next); };
-  return <AppContext.Provider value={{ ready, profiles, profile, locked, caretaker, attempts, learning, purchases, balance, notice, preferences, toast, dismiss: () => setNotice(null), step: setupStep(saved), saveCaretakerId, caretakerSignedOut, setCaretakerPin, finishSetup, createProfile, openCaretaker, closeCaretaker, deleteProfile, resetProfilePin, viewProfile, selectProfile, lock, unlock, answer, buyBadge, updatePreferences }}>
+  return <AppContext.Provider value={{ ready, profiles, profile, locked, caretaker, attempts, learning, purchases, balance, notice, preferences, toast, dismiss: () => setNotice(null), step: setupStep(saved), saveCaretakerId, caretakerSignedOut, setCaretakerPin, finishSetup, createProfile, openCaretaker, closeCaretaker, demoId, resetDemo, deleteProfile, resetProfilePin, viewProfile, selectProfile, lock, unlock, answer, buyBadge, updatePreferences }}>
     <InteractionBoundary onTouch={() => { lastInteraction.current = Date.now(); }}>{children}</InteractionBoundary>
   </AppContext.Provider>;
 }
