@@ -2,10 +2,11 @@ import React, { useEffect } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BookOpen, ChevronRight, CircleHelp, Coins, Download, Gift, Globe, Lock, MapPin, Repeat2, Sparkles, ChartColumn } from 'lucide-react-native';
+import { BookOpen, ChevronRight, CircleHelp, Coins, Download, Gift, Globe, Lock, MapPin, Repeat2, ChartColumn } from 'lucide-react-native';
 
 import { useApp } from '../state/app-context';
 import { initials } from '../domain/format';
+import { HINT_LANGUAGES } from '../domain/hint-voice';
 import { starterPacks } from '../content/starter-pack';
 import { elevation, radius, tokens, useTheme } from './theme';
 import { Eyebrow, Pill, Pills, Row, T } from './primitives';
@@ -36,7 +37,6 @@ export function AppBar({ title, subtitle, onMenu }: { title: string; subtitle?: 
 const TABS = [
   // Nav Bar · Student (472:152)
   { name: 'learn', label: 'Learn', icon: BookOpen },
-  { name: 'tutor', label: 'Tutor', icon: Sparkles },
   { name: 'progress', label: 'Progress', icon: ChartColumn },
   { name: 'rewards', label: 'Rewards', icon: Gift },
 ] as const;
@@ -133,7 +133,7 @@ function SidebarBody({ alias, detail, coins, megabytes, language, appearance, on
 }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const languageLabel = language === 'tl' ? 'Tagalog' : language === 'ceb' ? 'Cebuano' : 'English';
+  const languageLabel = HINT_LANGUAGES.find((l) => l.code === language)?.label ?? 'English';
   const items = [
     { icon: Repeat2, label: 'Switch Profile', value: undefined as string | undefined, active: true, onPress: onSwitch },
     { icon: Download, label: 'Downloaded Content', value: `${megabytes} MB`, active: false, onPress: undefined },

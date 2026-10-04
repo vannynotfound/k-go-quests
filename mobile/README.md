@@ -21,7 +21,7 @@ here runs inside Expo Go: no custom native module, no development build required
 src/
   app/              # expo-router file routes, typed
     _layout.tsx     # fonts, providers, role gating via Stack.Protected
-    (student)/      # learn · tutor · progress · rewards · league
+    (student)/      # learn · progress · rewards · league
     (teacher)/      # class · learners · alerts · quiz · grow
     (admin)/        # schools · users · content · impact · devices
     …               # profile picker (index), add-profile, lock, lesson, subject
