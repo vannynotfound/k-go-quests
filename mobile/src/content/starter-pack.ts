@@ -1,3 +1,4 @@
+import { HINT_TRANSLATIONS } from './hint-translations';
 import type { Exercise, Lesson, Pack, SkillSpec, Subject } from '../domain/types';
 
 /** Every Skill starts with these until a Pack Author tunes them. */
@@ -8,10 +9,10 @@ const skill = (id: string): SkillSpec => ({ id, parameters: { ...DEFAULT_SKILL_P
 /** Authoring shorthand: `answer` is the index of the correct option. */
 type Q = [prompt: string, options: string[], answer: number];
 
-function lesson(packId: string, slug: string, title: string, skillCode: string, body: string, hint: string, questions: Q[], hints: Record<string, string> = {}): Lesson {
+function lesson(packId: string, slug: string, title: string, skillCode: string, body: string, hint: string, questions: Q[]): Lesson {
   const id = `${packId}.${slug}`;
   const exercises: Exercise[] = questions.map(([prompt, options, correctOption], i) => ({ id: `${id}.q${i + 1}`, lessonId: id, prompt, options, correctOption }));
-  return { id, packId, title, skillCode, body, hints: { en: hint, ...hints }, exercises };
+  return { id, packId, title, skillCode, body, hints: { en: hint, ...HINT_TRANSLATIONS[id] }, exercises };
 }
 
 function pack(id: string, subject: Subject, title: string, skills: string[], lessons: Lesson[]): Pack {
@@ -31,7 +32,7 @@ const math = pack('math5', 'MATH', 'Fractions & Decimals', ['math5.fractions.equ
       ['Which pair of fractions is equivalent?', ['1/3 and 2/5', '2/5 and 4/10', '3/4 and 4/5', '1/2 and 2/3'], 1],
       ['What number completes 5/10 = 1/?', ['2', '4', '5', '10'], 0],
       ['Which fraction is NOT equivalent to 1/4?', ['2/8', '3/12', '4/16', '2/6'], 3],
-    ], { tl: 'Gawin ang parehong operasyon sa itaas at ibaba ng fraction. Ang 1/2 na i-multiply sa 2/2 ay 2/4.' }),
+    ]),
   lesson('math5', 'add', 'Adding fractions', 'math5.fractions.add',
     'To add fractions with the same denominator, add the numerators and keep the denominator: 1/5 + 2/5 = 3/5. With different denominators, first rewrite both with a common denominator.',
     'Same bottom number: add the top numbers only. Different bottoms: make them match first.',
@@ -79,7 +80,7 @@ const filipino = pack('fil5', 'FILIPINO', 'Panitikan at Balarila', ['fil5.balari
       ['Alin ang pangngalan?', ['tumakbo', 'mabilis', 'paaralan', 'masaya'], 2],
       ['Alin ang pangngalang tumutukoy sa hayop?', ['kalabaw', 'upuan', 'Maynila', 'guro'], 0],
       ['Alin ang pangngalang tumutukoy sa lugar?', ['lapis', 'palengke', 'kumain', 'maganda'], 1],
-    ], { tl: 'Ang pangngalan ay pangalan ng tao, hayop, bagay, lugar o pangyayari.' }),
+    ]),
 ]);
 
 const science = pack('sci5', 'SCIENCE', 'Life Cycles & Ecosystems', ['sci5.life-cycles.butterfly'], [

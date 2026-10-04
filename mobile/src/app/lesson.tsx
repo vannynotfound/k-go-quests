@@ -4,13 +4,14 @@ import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Speech from 'expo-speech';
-import { Check, CircleCheck, Lightbulb, Play, RefreshCw, TriangleAlert, WifiOff } from 'lucide-react-native';
+import { Check, CircleCheck, Play, RefreshCw, TriangleAlert, WifiOff } from 'lucide-react-native';
 
 import { useApp } from '@/state/app-context';
 import { subjectTitles } from '@/domain/subjects';
 import { starterPacks } from '@/content/starter-pack';
 import type { Exercise } from '@/domain/types';
 import { Action, BackLink, Card, Empty, Row, T } from '@/ui/primitives';
+import { HintCard } from '@/ui/hint-card';
 import { Screen } from '@/ui/screen';
 import { radius, tokens, useTheme } from '@/ui/theme';
 
@@ -25,7 +26,6 @@ export default function ModuleScreen() {
   const [index, setIndex] = useState(0);
   const [choice, setChoice] = useState<number | null>(null);
   const [verdict, setVerdict] = useState<Verdict | null>(null);
-  const [hintOpen, setHintOpen] = useState(false);
 
   const found = (() => {
     for (const pack of starterPacks) {
@@ -48,7 +48,6 @@ export default function ModuleScreen() {
   const answered = new Set(attempts.map((a) => a.exerciseId));
   const unanswered = lesson.exercises.filter((item) => !answered.has(item.id));
   const exercise = playlist ? playlist[index] : unanswered[0];
-  const hint = lesson.hints[preferences.language] ?? lesson.hints.en;
 
   return (
     <Screen chrome title="Module" caption="Playing from device storage">
@@ -103,17 +102,7 @@ export default function ModuleScreen() {
         </Card>
       )}
 
-      {hint ? (
-        <Card onPress={() => setHintOpen((open) => !open)} style={{ backgroundColor: tokens.tint.sun, borderColor: `${tokens.state.warning}40` }}>
-          <Row style={{ alignItems: 'flex-start' }}>
-            <Lightbulb size={18} color={tokens.brand.sunDeep} />
-            <View style={{ flex: 1, gap: 4 }}>
-              <T variant="titleS" color={tokens.brand.sunDeep}>{hintOpen ? 'Hint' : 'I do not understand — show a hint'}</T>
-              {hintOpen ? <T variant="bodyM">{hint}</T> : null}
-            </View>
-          </Row>
-        </Card>
-      ) : null}
+      <HintCard hints={lesson.hints} />
 
       {exercise ? (
         <Action
