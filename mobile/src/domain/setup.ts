@@ -18,3 +18,17 @@ export async function keepCaretaker(userId: string, save: (id: string) => Promis
     await signOut();
   }
 }
+
+/**
+ * For "Forgot Caretaker PIN": only the Caretaker Account saved at Setup may reset.
+ * The Clerk session is ended whether or not the account matches.
+ */
+export async function confirmCaretaker(userId: string, savedId: string | null, signOut: () => Promise<void>) {
+  await signOut();
+  if (!savedId || userId !== savedId) throw new Error('That is not the Caretaker Account used at Setup. The PIN was not changed.');
+}
+
+/** Turns a failed sign-in request into plain advice when the tablet is offline. */
+export function signInMessage(message: string) {
+  return /network|fetch|offline|internet/i.test(message) ? 'A network is needed for this sign-in. Nothing was changed.' : message;
+}

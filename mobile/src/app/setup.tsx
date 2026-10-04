@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState } from 'react';
 
 import { useApp } from '@/state/app-context';
+import { keepCaretaker } from '@/domain/setup';
 import { isValidPin } from '@/domain/pin-lock';
 import { Action, Card, Eyebrow, Field, T } from '@/ui/primitives';
 import { Screen } from '@/ui/screen';
@@ -19,10 +20,13 @@ export default function Setup() {
 }
 
 function SignInStep() {
+  const { saveCaretakerId, caretakerSignedOut } = useApp();
+  // Only after the Clerk sign-out has finished does Setup leave this step and unmount Clerk.
+  const onSignedIn = async (id: string, signOut: () => Promise<void>) => { await keepCaretaker(id, saveCaretakerId, signOut); caretakerSignedOut(); };
   return (
     <>
       <T size={12}>Setup needs a network only for this sign-in. Use the email of your Caretaker Account.</T>
-      <Suspense fallback={<T size={12}>Loading sign-in...</T>}><CaretakerSignIn /></Suspense>
+      <Suspense fallback={<T size={12}>Loading sign-in...</T>}><CaretakerSignIn onSignedIn={onSignedIn} /></Suspense>
     </>
   );
 }
